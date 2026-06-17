@@ -17,7 +17,7 @@ import { initGlobal } from './global.js'
   const CONFIG = {
     breakpoints: BREAKPOINTS,
     selectors: {
-      pageWrapper: '.page-wrap',
+      pageWrapper: '.page-w',
     },
   }
 
@@ -28,8 +28,8 @@ import { initGlobal } from './global.js'
     const page = document.querySelector(CONFIG.selectors.pageWrapper)
     if (!page) return
 
-    if (page.classList.contains('is-home')) initHome()
-    if (page.classList.contains('is-contact')) initContact()
+    if (page.classList.contains('is--home')) initHome()
+    if (page.classList.contains('is--contact')) initContact()
 
     initGlobal()
   }

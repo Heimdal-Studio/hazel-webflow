@@ -36,9 +36,10 @@ export default defineConfig(({ command }) => {
           globals: {
             jquery: '$',
             gsap: 'gsap',
+            three: 'THREE',
           },
         },
-        external: ['jquery', 'gsap'],
+        external: ['jquery', 'gsap', 'three'],
       },
     },
   }

@@ -1,3 +1,6 @@
+import { initHeroShader } from '../shaders/heroShader'
+
 export function initHome() {
-  // Home page logic
+  initHeroShader()
+  console.log('hi home')
 }
