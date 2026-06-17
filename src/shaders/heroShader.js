@@ -1,4 +1,4 @@
-import * as _THREE from 'three'
+import * as THREE from 'three'
 import gsap from 'gsap'
 
 // =============================================
@@ -132,9 +132,6 @@ const fragmentShader = /* glsl */ `
 // =============================================
 
 export function initHeroShader() {
-  // Use CDN global in prod; fall back to npm module in dev (avoids Rollup UMD interop issue)
-  const THREE = window.THREE || _THREE
-
   // data-webgl-media on the img is the single entry point — no separate hero attr needed
   const bgImg = document.querySelector('[data-webgl-media]')
   if (!bgImg) return
