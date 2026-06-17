@@ -21,7 +21,6 @@ import { initGlobal } from './global.js'
     },
   }
 
-  console.log('test')
 
   // =============================================
   // INIT
