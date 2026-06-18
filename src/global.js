@@ -1471,9 +1471,6 @@ const initFaqs = () => {
     if (component.hasAttribute('data-accordion')) return
     component.setAttribute('data-accordion', '')
 
-    let previousIndex = null,
-      closeFunctions = []
-
     component.querySelectorAll('.accordion_item').forEach((card, cardIndex) => {
       const button = card.querySelector('.accordion_button')
       const content = card.querySelector('.accordion_content')
@@ -1502,15 +1499,10 @@ const initFaqs = () => {
         function close() {
           if (button.ariaExpanded === 'false') return
           button.ariaExpanded = 'false'
-          previousIndex = null
           tl.reverse().invalidate()
         }
-        closeFunctions[cardIndex] = close
 
         function open(instant) {
-          if (previousIndex !== null && previousIndex !== cardIndex)
-            closeFunctions[previousIndex]?.()
-          previousIndex = cardIndex
           button.ariaExpanded = 'true'
           instant ? tl.progress(1) : tl.play()
         }
