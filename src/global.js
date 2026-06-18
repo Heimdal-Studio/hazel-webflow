@@ -1466,8 +1466,103 @@ function initLineRevealTestimonials() {
   })
 }
 
+const initFaqs = () => {
+  document.querySelectorAll('.accordion_component').forEach((component, listIndex) => {
+    if (component.hasAttribute('data-accordion')) return
+    component.setAttribute('data-accordion', '')
+
+    let previousIndex = null,
+      closeFunctions = []
+
+    component.querySelectorAll('.accordion_item').forEach((card, cardIndex) => {
+      const button = card.querySelector('.accordion_button')
+      const content = card.querySelector('.accordion_content')
+      if (!button || !content) return
+
+      const id = `accordion-${listIndex}-${cardIndex}`
+      button.id = `${id}-button`
+      button.setAttribute('aria-controls', `${id}-content`)
+      button.setAttribute('aria-expanded', 'false')
+      content.id = `${id}-content`
+      content.style.display = 'none'
+      content.setAttribute('aria-labelledby', button.id)
+
+      gsap.context(() => {
+        const tl = gsap.timeline({
+          paused: true,
+          defaults: { duration: 0.45, ease: 'power2.inOut' },
+          onComplete: () => (typeof ScrollTrigger !== 'undefined' ? ScrollTrigger.refresh() : null),
+          onReverseComplete: () =>
+            typeof ScrollTrigger !== 'undefined' ? ScrollTrigger.refresh() : null,
+        })
+        tl.set(content, { display: 'block' })
+        tl.fromTo(content, { height: 0 }, { height: 'auto' })
+        tl.fromTo('.accordion_icon', { rotate: 0 }, { rotate: -180 }, '<')
+
+        function close() {
+          if (button.ariaExpanded === 'false') return
+          button.ariaExpanded = 'false'
+          previousIndex = null
+          tl.reverse().invalidate()
+        }
+        closeFunctions[cardIndex] = close
+
+        function open(instant) {
+          if (previousIndex !== null && previousIndex !== cardIndex)
+            closeFunctions[previousIndex]?.()
+          previousIndex = cardIndex
+          button.ariaExpanded = 'true'
+          instant ? tl.progress(1) : tl.play()
+        }
+
+        button.addEventListener('click', () => (button.ariaExpanded === 'true' ? close() : open()))
+      }, card)
+    })
+  })
+}
+
+const initHighlightText = () => {
+  document.querySelectorAll('[data-highlight-text]').forEach((el) => {
+    const scrollStart = el.getAttribute('data-highlight-scroll-start') || 'top 100%'
+    const scrollEnd = el.getAttribute('data-highlight-scroll-end') || 'center 40%'
+    const fadeOpacity = parseFloat(el.getAttribute('data-highlight-fade')) || 0.2
+    const charStagger = parseFloat(el.getAttribute('data-highlight-stagger')) || 0.1
+    const lineStagger = parseFloat(el.getAttribute('data-highlight-line-stagger')) || 0.3
+
+    new SplitText(el, {
+      type: 'lines, words, chars',
+      autoSplit: true,
+      onSplit(split) {
+        return gsap.context(() => {
+          const charsByLine = split.lines.map((line) =>
+            split.chars.filter((char) => line.contains(char))
+          )
+
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: el,
+              start: scrollStart,
+              end: scrollEnd,
+              scrub: true,
+            },
+          })
+
+          charsByLine.forEach((chars, lineIndex) => {
+            tl.from(
+              chars,
+              { autoAlpha: fadeOpacity, stagger: charStagger, ease: 'linear' },
+              lineIndex * lineStagger
+            )
+          })
+        })
+      },
+    })
+  })
+}
+
 export function initGlobal() {
   initTextAnimations()
+  initHighlightText()
   initMarqueeScrollDirection()
 
   initNumbersAnimation()
@@ -1476,4 +1571,5 @@ export function initGlobal() {
   initLineRevealTestimonials()
 
   initMegaNavDirectionalHover()
+  initFaqs()
 }
