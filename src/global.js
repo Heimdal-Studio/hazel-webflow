@@ -1058,10 +1058,10 @@ function initMarqueeScrollDirection(container = document) {
     } = marquee.dataset
 
     // Convert data attributes to usable types
-    const marqueeSpeedAttr = parseFloat(speed)
+    const marqueeSpeedAttr = parseFloat(speed) || 30
     const marqueeDirectionAttr = direction === 'right' ? 1 : -1 // 1 for right, -1 for left
     const duplicateAmount = parseInt(duplicate || 0)
-    const scrollSpeedAttr = parseFloat(scrollSpeed)
+    const scrollSpeedAttr = parseFloat(scrollSpeed) || 1
     const speedMultiplier = window.innerWidth < 479 ? 0.25 : window.innerWidth < 991 ? 0.5 : 1
 
     const marqueeSpeed =

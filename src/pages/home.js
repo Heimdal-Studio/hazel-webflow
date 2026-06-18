@@ -9,6 +9,16 @@ const initHomeHero = () => {
   //   { y: '20vh', scale: 1.05, opacity: 0 },
   //   { y: '0vh', scale: 1, opacity: 1, duration: 3, ease: 'main' }
   // ).from('.home-h_img', { y: '100vh' }, '<.1')
+
+  const tl = gsap.timeline({
+    scrollTrigger: {
+      trigger: '.section_home-h',
+      start: 'clamp(top bottom)',
+      scrub: true,
+    },
+  })
+
+  tl.fromTo('.home-h_bg', { y: '0vh' }, { y: '30vh' })
 }
 
 const initIconCards = () => {
