@@ -12,13 +12,13 @@ const initHomeHero = () => {
 
   const tl = gsap.timeline({
     scrollTrigger: {
-      trigger: '.section_home-h',
+      trigger: '[data-hero]',
       start: 'clamp(top bottom)',
       scrub: true,
     },
   })
 
-  tl.fromTo('.home-h_bg', { y: '0vh' }, { y: '30vh' })
+  tl.fromTo('[data-hero-bg]', { y: '0vh' }, { y: '30vh' })
 }
 
 const initIconCards = () => {
@@ -91,7 +91,6 @@ const initRace = () => {
 
 export function initHome() {
   // initHeroShader()
-  initHomeHero()
   initIconCards()
   initRace()
   console.log('hi home')

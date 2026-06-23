@@ -1513,6 +1513,172 @@ const initFaqs = () => {
   })
 }
 
+function initPriceCards(next = document) {
+  ScrollTrigger.refresh();
+  let wrap = next.querySelector("[data-price-status]");
+
+  if (!wrap) {
+    return;
+  }
+
+  if (wrap) {
+    const buttons = wrap.querySelectorAll("[data-price-toggle]")
+    const row = wrap
+
+    buttons.forEach(button => {
+      const type = button.getAttribute("data-price-toggle")
+      button.addEventListener("click", () => {
+        if (row.getAttribute("data-price-status") === type) return
+        row.setAttribute("data-price-status", type)
+        buttons.forEach(btn => btn.classList.remove("is--active"))
+        button.classList.add("is--active")
+      })
+    })
+
+  } else {
+    const left = wrap.querySelector(".p-card.is--left");
+    const right = wrap.querySelector(".p-card.is--right");
+    const center = wrap.querySelector(".p-card.is--center");
+    const anim = wrap.querySelector("[data-lottie]");
+    const cards = wrap.querySelectorAll(".p-card");
+    const sub = wrap.querySelectorAll(".p-card__sub");
+
+    const animation = lottie.loadAnimation({
+      container: anim,
+      renderer: "svg",
+      loop: false,
+      autoplay: false,
+      path: anim.getAttribute("data-lottie-path"),
+    });
+
+    gsap
+      .timeline({
+        scrollTrigger: {
+          trigger: wrap,
+          start: "top bottom",
+          toggleActions: "play none none reverse",
+        },
+        onReverseComplete: () => {
+          animation.goToAndStop(0, true);
+        },
+      })
+      .from(left, {
+        xPercent: 80,
+        yPercent: 30,
+        rotate: 6,
+        duration: 0.8,
+        ease: "back.out(1.8)",
+      })
+      .from(
+        right,
+        {
+          xPercent: -80,
+          yPercent: 30,
+          rotate: -6,
+          duration: 0.8,
+          ease: "back.out(1.8)",
+        },
+        0
+      )
+      .from(
+        center,
+        {
+          yPercent: 10,
+          scale: 0.85,
+          duration: 0.8,
+          ease: "back.out(1.5)",
+          onStart: () => {
+            gsap.delayedCall(0.5, () => {
+              animation.play();
+            });
+          },
+        },
+        0
+      );
+
+    // HOVERING
+    cards.forEach((card) => {
+      card.addEventListener("mouseenter", () => {
+        cards.forEach((c) => c.classList.remove("is--active"));
+        card.classList.add("is--active");
+        gsap.to(card, {
+          scale: prefersReducedMotion() ? 1 : 1.1,
+          duration: 0.3,
+          ease: "back.out(1.8)",
+          overwrite: "auto",
+        });
+      });
+
+      card.addEventListener("mouseleave", () => {
+        card.classList.remove("is--active");
+        center.classList.add("is--active");
+        gsap.to(card, {
+          scale: 1,
+          duration: 0.3,
+          ease: "back.out(1.5)",
+          overwrite: "auto",
+        });
+      });
+    });
+
+    // PRICE CHANGE
+    const solo = next.querySelector("[data-price-solo]");
+    const joint = next.querySelector("[data-price-joint]");
+    const toggleTl = gsap.timeline({ paused: true });
+    toggleTl
+      .to(".p-card__heading", {
+        y: "-0.9em",
+        duration: 0.5,
+        ease: "back.inOut(2)",
+      })
+      .to(
+        ".p-card__eyebrow .eyebrow",
+        {
+          yPercent: -100,
+          duration: 0.5,
+          ease: "back.inOut(2)",
+        },
+        0
+      )
+      .to(
+        ".p-card__sign.offset",
+        {
+          left: "0em",
+          duration: 0.5,
+          ease: "back.inOut(2)",
+        },
+        0
+      )
+      .to(
+        sub,
+        {
+          x: "0em",
+          duration: 0.5,
+          ease: "back.inOut(2)",
+        },
+        0
+      );
+
+    solo.addEventListener("click", () => {
+      if (!solo.classList.contains("is--active")) {
+        joint.classList.remove("is--active");
+        solo.classList.add("is--active");
+        toggleTl.reverse();
+      }
+    });
+
+    joint.addEventListener("click", () => {
+      if (!joint.classList.contains("is--active")) {
+        solo.classList.remove("is--active");
+        joint.classList.add("is--active");
+        toggleTl.play();
+      }
+    });
+    wrap = null;
+  }
+
+}
+
 const initHighlightText = () => {
   document.querySelectorAll('[data-highlight-text]').forEach((el) => {
     const scrollStart = el.getAttribute('data-highlight-scroll-start') || 'top 100%'
@@ -1552,9 +1718,246 @@ const initHighlightText = () => {
   })
 }
 
+const initRevealText = () => {
+  document.querySelectorAll('[data-highlight-text]').forEach((el) => {
+    new SplitText(el, {
+      type: 'lines, words, chars',
+      autoSplit: true,
+      onSplit(split) {
+        return gsap.context(() => {
+          const wordsByLine = split.lines.map((line) =>
+            split.words.filter((word) => line.contains(word))
+          )
+
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 90%',
+              toggleActions: 'play none none none',
+            },
+          })
+
+          const originalColor = getComputedStyle(el).color
+
+          wordsByLine.forEach((words, lineIndex) => {
+            const mid = (words.length - 1) / 2
+
+            words.forEach((word, i) => {
+              const dist = mid > 0 ? Math.abs(i - mid) / mid : 0
+              const staggerDelay = Math.abs(i - mid) * 0.02
+              const baseTime = lineIndex * 0.03
+
+              gsap.set(word, { autoAlpha: 0, color: '#E07A5F', y: 50 + dist * 20 })
+              tl.to(word, { autoAlpha: 1, duration: 0.2, ease: 'none' }, baseTime + staggerDelay)
+              tl.to(word, { color: originalColor, y: 0, ease: 'power3.out', duration: 1 }, baseTime + staggerDelay)
+            })
+          })
+        })
+      },
+    })
+  })
+}
+
+const initRevealText2 = () => {
+  document.querySelectorAll('[data-highlight-text]').forEach((el) => {
+    new SplitText(el, {
+      type: 'lines, words, chars',
+      autoSplit: true,
+      onSplit(split) {
+        return gsap.context(() => {
+          const originalColor = getComputedStyle(el).color
+          const highlightColor = getComputedStyle(el).getPropertyValue('--_theme---text-color--text-highlight').trim()
+
+          gsap.set(split.chars, { color: highlightColor, opacity: 0.2 })
+
+          const charsByLine = split.lines.map((line) =>
+            split.chars.filter((char) => line.contains(char))
+          )
+
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 100%',
+              toggleActions: 'play none none none',
+            },
+          })
+
+          const textAlign = getComputedStyle(el).textAlign
+          const isLeftAligned = textAlign === 'left' || textAlign === 'start'
+
+          const allChars = []
+          const offsets = []
+
+          charsByLine.forEach((chars, lineIndex) => {
+            const mid = (chars.length - 1) / 2
+            chars.forEach((char, i) => {
+              const dist = isLeftAligned ? i : Math.abs(i - mid)
+              allChars.push(char)
+              offsets.push(lineIndex * 0.15 + dist * 0.04)
+            })
+          })
+
+          tl.to(allChars, { opacity: 1, duration: 0.2, ease: 'power1.inOut', stagger: (i) => offsets[i] }, 0)
+          tl.to(allChars, { color: originalColor, duration: .7, ease: 'power3.out', stagger: (i) => offsets[i] + 0.3 }, 0)
+        })
+      },
+    })
+  })
+}
+
+const initHeroParallax = () => {
+  const tl = gsap.timeline({
+    scrollTrigger: {
+      trigger: '[data-hero]',
+      start: 'clamp(top bottom)',
+      scrub: true,
+    },
+  })
+
+  tl.fromTo('[data-hero-bg]', { y: '0vh' }, { y: '30vh' })
+}
+
+function initProgressCards() {
+  const wrap = document.querySelector(".progress-container");
+  if (!wrap) return;
+
+  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+
+  const progressItems = [...wrap.querySelectorAll(".progress_item")];
+  const visualItems = [...wrap.querySelectorAll(".progress-visual_item")];
+  const progressBars = [...wrap.querySelectorAll(".progress_line-active")];
+  const textList = wrap.querySelector(".progress_list");
+
+  const count = progressItems.length;
+  if (!count) return;
+
+  const PHASE_DURATION = 1.5;
+  const FADE_DURATION = 0.25;
+  const TEXT_SLIDE = 1;
+  const GAP = textList ? parseFloat(getComputedStyle(textList).rowGap) || 0 : 0;
+
+  const itemHeights = progressItems.map(el => el.getBoundingClientRect().height);
+
+  visualItems.slice(1).forEach(v => gsap.set(v, { autoAlpha: 0 }));
+  if (isMobile) progressItems.slice(1).forEach(el => gsap.set(el, { autoAlpha: 0 }));
+
+  function setActive(index) {
+    progressItems.forEach((el, i) => el.classList.toggle("is--active", i === index));
+  }
+
+  const tl = gsap.timeline({
+    scrollTrigger: {
+      trigger: ".progress-inner",
+      start: "top 50%",
+      endTrigger: wrap,
+      end: "bottom 80%",
+      scrub: true,
+      onUpdate(self) {
+        setActive(Math.min(Math.floor(self.progress * count), count - 1));
+      }
+    }
+  });
+
+  progressItems.forEach((_, i) => {
+    const t = PHASE_DURATION * i;
+
+    if (progressBars[i]) {
+      tl.fromTo(progressBars[i],
+        { height: "0%" },
+        { height: "100%", duration: PHASE_DURATION, ease: "none" },
+        t
+      );
+    }
+
+    if (i > 0) {
+      let yOffset = 0;
+      for (let j = 0; j < i; j++) yOffset += itemHeights[j] + GAP;
+
+      if (!isMobile && textList) {
+        tl.to(textList, {
+          y: `${yOffset * -1}px`,
+          duration: TEXT_SLIDE,
+          ease: "power2.inOut"
+        }, t);
+      }
+
+      if (isMobile) {
+        tl
+          .to(progressItems[i - 1], { autoAlpha: 0, y: "-2rem", duration: FADE_DURATION, ease: "power2.out" }, t)
+          .fromTo(progressItems[i], { autoAlpha: 0, y: "2rem" }, { autoAlpha: 1, y: "0rem", duration: FADE_DURATION, ease: "power2.out" }, t + FADE_DURATION);
+      }
+
+      if (visualItems[i]) {
+        tl
+          .to(visualItems[i - 1], { autoAlpha: 0, duration: FADE_DURATION, ease: "power2.in" }, t)
+          .fromTo(visualItems[i], { autoAlpha: 0 }, { autoAlpha: 1, duration: FADE_DURATION, ease: "power2.out" }, t + FADE_DURATION);
+      }
+    }
+  });
+
+  return tl;
+}
+
+
+function initTypewriter() {
+  const SPEEDS = {
+    slow: 0.14,
+    normal: 0.06,
+    fast: 0.018,
+  }
+
+  function animate(target, scrollTrigger) {
+    const speedKey = target.getAttribute('data-typewriter-speed') || 'normal'
+    const stagger = SPEEDS[speedKey] ?? SPEEDS.normal
+
+    const split = new SplitText(target, { type: 'chars', charsClass: 'tw-char' })
+    gsap.set(split.chars, { autoAlpha: 0 })
+
+    const opts = {
+      autoAlpha: 1,
+      duration: 0.01,
+      stagger,
+      ease: 'none',
+      onComplete: () => split.revert(),
+    }
+    if (scrollTrigger) opts.scrollTrigger = scrollTrigger
+
+    gsap.to(split.chars, opts)
+  }
+
+  document.querySelectorAll('[data-typewriter="load"]').forEach((el) => animate(el, null))
+
+  document.querySelectorAll('[data-typewriter="scroll"]').forEach((el) =>
+    animate(el, { trigger: el, start: 'top bottom', once: true })
+  )
+}
+
+function initFooterMouseMask() {
+  const wrap = document.querySelector('.footer-wrap');
+  if (!wrap) return;
+
+  let raf;
+  wrap.addEventListener('mousemove', (e) => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => {
+      const rect = wrap.getBoundingClientRect();
+      wrap.style.setProperty('--xp', `${((e.clientX - rect.left) / rect.width) * 100}%`);
+      wrap.style.setProperty('--yp', `${((e.clientY - rect.top) / rect.height) * 100}%`);
+    });
+  });
+
+  wrap.addEventListener('mouseleave', () => {
+    wrap.style.setProperty('--xp', '-50%');
+    wrap.style.setProperty('--yp', '-50%');
+  });
+}
+
+
 export function initGlobal() {
   initTextAnimations()
-  initHighlightText()
+  // initHighlightText()
+  // initRevealText()
+  initRevealText2()
   initMarqueeScrollDirection()
 
   initNumbersAnimation()
@@ -1564,4 +1967,10 @@ export function initGlobal() {
 
   initMegaNavDirectionalHover()
   initFaqs()
+
+  initPriceCards()
+  initHeroParallax()
+  initProgressCards()
+  initFooterMouseMask()
+  initTypewriter()
 }
