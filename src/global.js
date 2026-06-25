@@ -1793,12 +1793,12 @@ const initRevealText2 = () => {
             chars.forEach((char, i) => {
               const dist = isLeftAligned ? i : Math.abs(i - mid)
               allChars.push(char)
-              offsets.push(lineIndex * 0.15 + dist * 0.04)
+              offsets.push(lineIndex * 0.1 + dist * 0.04)
             })
           })
 
           tl.to(allChars, { opacity: 1, duration: 0.2, ease: 'power1.inOut', stagger: (i) => offsets[i] }, 0)
-          tl.to(allChars, { color: originalColor, duration: .7, ease: 'power3.out', stagger: (i) => offsets[i] + 0.3 }, 0)
+          tl.to(allChars, { color: originalColor, duration: .4, ease: 'power3.out', stagger: (i) => offsets[i] + 0.2 }, 0)
         })
       },
     })
@@ -1889,15 +1889,14 @@ function initProgressCards() {
 
       if (visualItems[i]) {
         tl
-          .to(visualItems[i - 1], { autoAlpha: 0, duration: FADE_DURATION, ease: "power2.in" }, t)
-          .fromTo(visualItems[i], { autoAlpha: 0 }, { autoAlpha: 1, duration: FADE_DURATION, ease: "power2.out" }, t + FADE_DURATION);
+          .to(visualItems[i - 1], { autoAlpha: 0, y: '2rem', duration: FADE_DURATION, ease: "power2.in" }, t)
+          .fromTo(visualItems[i], { autoAlpha: 0, y:'2rem' }, { autoAlpha: 1, y: '0rem', duration: FADE_DURATION, ease: "power2.out" }, t + FADE_DURATION);
       }
     }
   });
 
   return tl;
 }
-
 
 function initTypewriter() {
   const SPEEDS = {
@@ -1951,7 +1950,6 @@ function initFooterMouseMask() {
     wrap.style.setProperty('--yp', '-50%');
   });
 }
-
 
 export function initGlobal() {
   initTextAnimations()

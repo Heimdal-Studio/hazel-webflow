@@ -3,6 +3,7 @@ import { BREAKPOINTS } from './utils/breakpoints.js'
 import { initHome } from './pages/home.js'
 import { initContact } from './pages/contact.js'
 import { initGlobal } from './global.js'
+import { initNav } from './nav.js'
 
 ;(() => {
   // =============================================
@@ -33,6 +34,7 @@ import { initGlobal } from './global.js'
     if (page.classList.contains('is--contact')) initContact()
 
     initGlobal()
+    initNav()
   }
 
   // =============================================
