@@ -142,9 +142,6 @@ export function initHeroShader() {
   // Canvas lives in the img's parent wrapper (home-h_bg-w) — inherits its exact size
   const container = bgImg.parentElement
 
-  // Mouse events on the nearest header/section so hovering anywhere in hero triggers the effect
-  const heroEl = bgImg.closest('header, section') || container
-
   // Inject canvas into the bg wrapper, behind all siblings
   const canvas = document.createElement('canvas')
   canvas.style.cssText =
@@ -193,8 +190,12 @@ export function initHeroShader() {
   scene.add(mesh)
 
   // =============================================
-  // MOUSE
+  // AUTONOMOUS DRIFT
   // =============================================
+  // No mouse input — the distortion spot wanders on its own. Position is driven
+  // by slow, incommensurate sine waves (a Lissajous-style path) so the motion
+  // feels fluid and never obviously loops. The render loop lerps toward this
+  // target for extra inertia.
 
   const state = {
     mouseEnter: 0,
@@ -204,25 +205,16 @@ export function initHeroShader() {
     },
   }
 
-  heroEl.addEventListener('mouseenter', () => {
-    gsap.to(state, { mouseEnter: 1, duration: 0.6, ease: 'power2.inOut' })
-  })
+  // Ease the effect in once on load so it doesn't pop
+  gsap.to(state, { mouseEnter: 1, duration: 1.2, ease: 'power2.out' })
 
-  heroEl.addEventListener('mousemove', (e) => {
-    const b = getBounds() // relative to container (bg wrapper), not full section
-    state.mouseOverPos.target.x = (e.clientX - b.left) / b.width
-    state.mouseOverPos.target.y = (e.clientY - b.top) / b.height
-  })
-
-  heroEl.addEventListener('mouseleave', () => {
-    gsap.to(state, { mouseEnter: 0, duration: 0.6, ease: 'power2.inOut' })
-    gsap.to(state.mouseOverPos.target, {
-      x: 0.5,
-      y: 0.5,
-      duration: 0.6,
-      ease: 'power2.inOut',
-    })
-  })
+  // Slow wandering target — amplitudes keep the spot comfortably in frame
+  const driftTarget = (t) => {
+    state.mouseOverPos.target.x =
+      0.5 + Math.sin(t * 0.3) * 0.18 + Math.sin(t * 0.13 + 1.7) * 0.08
+    state.mouseOverPos.target.y =
+      0.5 + Math.cos(t * 0.21) * 0.16 + Math.sin(t * 0.07 + 0.5) * 0.07
+  }
 
   // =============================================
   // RESIZE
@@ -263,6 +255,8 @@ export function initHeroShader() {
     let rafId
     const render = (time = 0) => {
       time /= 1000
+
+      driftTarget(time)
 
       state.mouseOverPos.current.x = lerp(
         state.mouseOverPos.current.x,

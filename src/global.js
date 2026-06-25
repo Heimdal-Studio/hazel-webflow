@@ -1817,6 +1817,7 @@ const initHeroParallax = () => {
   tl.fromTo('[data-hero-bg]', { y: '0vh' }, { y: '30vh' })
 }
 
+/* Version with scroll - scrub
 function initProgressCards() {
   const wrap = document.querySelector(".progress-container");
   if (!wrap) return;
@@ -1897,6 +1898,133 @@ function initProgressCards() {
 
   return tl;
 }
+*/
+
+function initProgressCards() {
+  const wrap = document.querySelector(".progress-container");
+  if (!wrap) return;
+
+  const progressItems = [...wrap.querySelectorAll(".progress_item")];
+  const visualItems = [...wrap.querySelectorAll(".progress-visual_item")];
+
+  const count = progressItems.length;
+  if (!count) return;
+
+  const AUTOPLAY_DURATION = 7;        // seconds the progress bar takes to fill
+  const SWITCH_DURATION = 0.6;        // expand / collapse (kept in lockstep)
+  const EXPAND_EASE = "power2.inOut"; // shared by collapse + expand so heights track
+  const CONTENT_FADE = 1;          // content reveal in
+  const CONTENT_OUT = 0.25;           // content fade out
+  const REVEAL_STAGGER = 0.03;
+
+  // Per-item element refs
+  const tabs = progressItems.map(item => ({
+    item,
+    bar: item.querySelector(".progress_line-active"),
+    expand: item.querySelector(".progress_expand-w"),
+    reveal: [...item.querySelectorAll(".progress_expand > *")],
+  }));
+
+  // Collapsed starting state
+  tabs.forEach(tab => {
+    if (tab.expand) gsap.set(tab.expand, { display: "block", height: 0 });
+    if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: "1rem" });
+    if (tab.bar) gsap.set(tab.bar, { height: "0%" });
+  });
+  visualItems.forEach(v => gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: 0 }));
+
+  let activeIndex = null;
+  let isAnimating = false;
+  let barTween = null;
+
+  // Fill the active item's progress bar, then advance to the next tab
+  function startProgressBar(index) {
+    if (barTween) barTween.kill();
+    const bar = tabs[index].bar;
+    if (!bar) return;
+    gsap.set(bar, { height: "0%" });
+    barTween = gsap.to(bar, {
+      height: "100%",
+      duration: AUTOPLAY_DURATION,
+      ease: "none",
+      onComplete: () => switchTab((index + 1) % count),
+    });
+  }
+
+  function switchTab(index) {
+    if (isAnimating || index === activeIndex) return;
+    isAnimating = true;
+    if (barTween) barTween.kill();
+
+    const incoming = tabs[index];
+    const outgoing = activeIndex != null ? tabs[activeIndex] : null;
+    const incomingVisualItem = visualItems[index];
+    const incomingVisual = incomingVisualItem.querySelector('.progress-visual_visual-w')
+    const outgoingVisualItem = activeIndex != null ? visualItems[activeIndex] : null;
+    const outgoingVisual = outgoingVisualItem?.querySelector('.progress-visual_visual-w')
+
+    progressItems.forEach((el, i) => el.classList.toggle("is--active", i === index));
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        activeIndex = index;
+        isAnimating = false;
+        startProgressBar(index);
+      },
+    });
+
+    // Collapse + expand run together (same start, duration, ease) so the list
+    // reflows in one smooth motion instead of growing then shrinking (no jump).
+    if (outgoing?.expand) {
+      tl.to(outgoing.expand, { height: 0, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
+    }
+    if (incoming.expand) {
+      tl.fromTo(incoming.expand,
+        { height: 0 },
+        { height: "auto", duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
+    }
+
+    // Outgoing content / bar / visual fade out immediately
+    if (outgoing) {
+      if (outgoing.reveal.length) tl.to(outgoing.reveal, { autoAlpha: 0, y: "-1rem", duration: CONTENT_OUT, ease: "power2.in" }, 0);
+      if (outgoing.bar) tl.to(outgoing.bar, { height: "0%", duration: 0.3, ease: "power4.out" }, 0);
+      if (outgoingVisual) tl.to(outgoingVisual, { autoAlpha: 0, y: "2rem", duration: 0.5, ease: "power2.in" }, 0);
+    }
+
+    // Incoming content reveals
+    if (incoming.reveal.length) {
+      tl.fromTo(incoming.reveal,
+        { autoAlpha: 0, y: "4rem" },
+        { autoAlpha: 1, y: "0rem", duration: CONTENT_FADE, ease: "power4.out", stagger: REVEAL_STAGGER },
+        0.2
+      );
+    }
+    // Incoming visual reveals
+    if (incomingVisual) {
+      tl.fromTo(incomingVisual,
+        { autoAlpha: 0, y: "4rem" },
+        { autoAlpha: 1, y: "0rem", duration: 0.8, ease: "power4.out" },
+        SWITCH_DURATION
+      );
+    }
+  }
+
+  // Start the autoplay loop once the section scrolls into view
+  ScrollTrigger.create({
+    trigger: ".progress-inner",
+    start: "top 50%",
+    once: true,
+    onEnter: () => switchTab(0),
+  });
+
+  // Click a card to jump to it (but let the inner CTA link through)
+  progressItems.forEach((item, i) => {
+    item.addEventListener("click", (e) => {
+      if (e.target.closest(".button-w")) return;
+      switchTab(i);
+    });
+  });
+}
 
 function initTypewriter() {
   const SPEEDS = {
@@ -1931,25 +2059,87 @@ function initTypewriter() {
   )
 }
 
-function initFooterMouseMask() {
-  const wrap = document.querySelector('.footer-wrap');
-  if (!wrap) return;
+  const initFooterGradient = () => {
+    const CONFIG = {
+      logo: '.footer_logo',
+      hoverArea: '.footer_component',
+      duration: 0.5,
+      ease: 'power3',
+      fade: 0.35,
+      shimmerStops: ['#DF9A65', '#DBA878', '#EBBE93']
+    };
 
-  let raf;
-  wrap.addEventListener('mousemove', (e) => {
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => {
-      const rect = wrap.getBoundingClientRect();
-      wrap.style.setProperty('--xp', `${((e.clientX - rect.left) / rect.width) * 100}%`);
-      wrap.style.setProperty('--yp', `${((e.clientY - rect.top) / rect.height) * 100}%`);
-    });
-  });
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    let uid = 0;
 
-  wrap.addEventListener('mouseleave', () => {
-    wrap.style.setProperty('--xp', '-50%');
-    wrap.style.setProperty('--yp', '-50%');
-  });
-}
+    function initShimmer(logo) {
+      const svg = logo.querySelector('svg');
+      if (!svg) return;
+
+      const area = logo.closest(CONFIG.hoverArea) ||
+                   document.querySelector(CONFIG.hoverArea) || logo;
+
+      const shimmer = svg.cloneNode(true);
+      shimmer.removeAttribute('aria-label');
+      shimmer.setAttribute('aria-hidden', 'true');
+      shimmer.classList.add('hz-shimmer');
+      shimmer.querySelectorAll('defs').forEach((d) => d.remove());
+
+      const gid = 'hzShimmerGrad' + (uid++);
+      const vb = (shimmer.getAttribute('viewBox') || '0 0 100 100').split(/\s+/).map(Number);
+      const defs = document.createElementNS(SVG_NS, 'defs');
+      const grad = document.createElementNS(SVG_NS, 'linearGradient');
+      grad.setAttribute('id', gid);
+      grad.setAttribute('gradientUnits', 'userSpaceOnUse');
+      grad.setAttribute('x1', vb[0]);
+      grad.setAttribute('y1', vb[1]);
+      grad.setAttribute('x2', vb[0] + vb[2]);
+      grad.setAttribute('y2', vb[1] + vb[3]);
+      CONFIG.shimmerStops.forEach((color, i, arr) => {
+        const stop = document.createElementNS(SVG_NS, 'stop');
+        stop.setAttribute('offset', arr.length > 1 ? i / (arr.length - 1) : 0);
+        stop.setAttribute('stop-color', color);
+        grad.appendChild(stop);
+      });
+      defs.appendChild(grad);
+      shimmer.insertBefore(defs, shimmer.firstChild);
+      shimmer.querySelectorAll('path').forEach((p) => p.setAttribute('fill', 'url(#' + gid + ')'));
+      logo.appendChild(shimmer);
+
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      const dur = reduce ? 0 : CONFIG.duration;
+
+      const xTo = gsap.quickTo(logo, '--xp', { duration: dur, ease: CONFIG.ease });
+      const yTo = gsap.quickTo(logo, '--yp', { duration: dur, ease: CONFIG.ease });
+
+      const toPct = (e) => {
+        const r = logo.getBoundingClientRect();
+        return [
+          ((e.clientX - r.left) / r.width) * 100,
+          ((e.clientY - r.top) / r.height) * 100
+        ];
+      };
+
+      area.addEventListener('pointerenter', (e) => {
+        const [x, y] = toPct(e);
+        gsap.set(logo, { '--xp': x, '--yp': y });
+        gsap.to(shimmer, { opacity: 1, duration: CONFIG.fade, overwrite: true });
+      });
+      area.addEventListener('pointermove', (e) => {
+        const [x, y] = toPct(e);
+        xTo(x);
+        yTo(y);
+      });
+      area.addEventListener('pointerleave', () => {
+        gsap.to(shimmer, { opacity: 0, duration: CONFIG.fade, overwrite: true });
+      });
+    }
+
+    function boot() {
+      document.querySelectorAll(CONFIG.logo).forEach(initShimmer);
+    }
+    boot()
+  }
 
 export function initGlobal() {
   initTextAnimations()
@@ -1969,6 +2159,7 @@ export function initGlobal() {
   initPriceCards()
   initHeroParallax()
   initProgressCards()
-  initFooterMouseMask()
   initTypewriter()
+
+  initFooterGradient()
 }
