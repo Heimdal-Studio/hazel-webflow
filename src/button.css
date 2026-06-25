@@ -1,0 +1,141 @@
+<!--  -->
+<style>
+  /* CSS Starter + a11y */
+
+  :root {
+    --button-press: 0.125em;
+    --button-border-radius: 0.6875rem;
+    --button-focus-color: #000;
+    --button-duration: .32s;
+    --button-ease: cubic-bezier(0.625, 0.05, 0, 1);
+    --button-ease-hover: cubic-bezier(0.625, 0.05, 0, 1);
+    --button-ease-focus: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  /* Kill the grey tap flash on mobile */
+  .button,
+  [data-button-trigger],
+  .link {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Characters */
+  .button [data-button-text],
+  [data-button-trigger] [data-button-text],
+  .link [data-button-text] {
+    overflow: hidden;
+    position: relative;
+    display: inline-block;
+  }
+
+  .button [data-button-text] span,
+  .link [data-button-text] span,
+  [data-button-trigger] [data-button-text] span {
+    display: inline-block;
+    position: relative;
+    text-shadow: 0px 1.3em currentColor;
+    transform: translateY(0em) rotate(0.001deg);
+    transition: transform 0.6s var(--button-ease);
+  }
+
+  .button.is--gradient .button__bg {
+    background: -webkit-linear-gradient(90deg, var(--BtnSecondary1) 10%, var(--BtnSecondary2) 55%, var(--BtnSecondary3) 80%);
+    background: linear-gradient(90deg, var(--BtnSecondary1) 10%, var(--BtnSecondary2) 55%, var(--BtnSecondary3) 80%);
+    transition:
+      --BtnSecondary1 0.9s var(--button-ease-hover),
+      --BtnSecondary2 0.9s var(--button-ease-hover),
+      --BtnSecondary3 0.9s var(--button-ease-hover),
+      inset 0.45s var(--button-ease);
+    --BtnSecondary1: #ffefd9;
+    --BtnSecondary2: #feaf42;
+    --BtnSecondary3: #ff6624;
+  }
+
+  /* Gradient hover — swap colors only (stops stay put so it can interpolate) */
+  .button.is--gradient:hover .button__bg {
+    --BtnSecondary1: #ff6624;
+    --BtnSecondary2: #feaf42;
+    --BtnSecondary3: #ffefd9;
+  }
+
+  /* Background */
+  .button__bg {
+    inset: 0;
+    transition: inset var(--button-duration) var(--button-ease);
+  }
+
+  /* Hover background — crossfades in on top of the base bg */
+  .button__bg-hover {
+    inset: 0;
+    opacity: 0;
+    transition:
+      opacity var(--button-duration) var(--button-ease-hover),
+      inset var(--button-duration) var(--button-ease);
+  }
+
+  /* Focus ring for keyboard users — always on, not motion */
+  .button::after,
+  [data-button-trigger]::after,
+  .link::after {
+    content: '';
+    position: absolute;
+    inset: calc(var(--button-press) * -1);
+    border-radius: var(--button-border-radius);
+    pointer-events: none;
+    z-index: 1;
+    transition: box-shadow 0.3s var(--button-ease-focus);
+  }
+
+  .button:focus-visible::after,
+  [data-button-trigger]:focus-visible::after,
+  .link:focus-visible::after {
+    box-shadow: 0 0 0 0.125em var(--button-focus-color);
+  }
+
+  /* Motion (text roll-up + press) — only when the user allows motion */
+  @media (max-width: 991px) {
+    .button [data-button-text="disable-tablet"],
+    [data-button-trigger] [data-button-text="disable-tablet"],
+    .link [data-button-text="disable-tablet"] {
+      overflow: visible;
+    }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    /* Keyboard focus: any device */
+    .button:focus-visible [data-button-text] span,
+    .link:focus-visible [data-button-text] span,
+    [data-button-trigger]:focus-visible [data-button-text] span {
+      transform: translateY(-1.3em) rotate(0.001deg);
+    }
+
+    .button:focus-visible :is(.button__bg, .button__bg-hover),
+    [data-button-trigger]:focus-visible :is(.button__bg, .button__bg-hover) {
+      inset: var(--button-press);
+    }
+
+    .button:focus-visible .button__bg-hover,
+    [data-button-trigger]:focus-visible .button__bg-hover {
+      opacity: 1;
+    }
+
+    /* Hover: only real pointer devices (no sticky hover on touch) */
+    @media (hover: hover) and (pointer: fine) {
+      .button:hover [data-button-text] span,
+      .link:hover [data-button-text] span,
+      [data-button-trigger]:hover [data-button-text] span {
+        transform: translateY(-1.3em) rotate(0.001deg);
+      }
+
+      .button:hover :is(.button__bg, .button__bg-hover),
+      [data-button-trigger]:hover :is(.button__bg, .button__bg-hover) {
+        inset: var(--button-press);
+      }
+
+      .button:hover .button__bg-hover,
+      [data-button-trigger]:hover .button__bg-hover {
+        opacity: 1;
+      }
+    }
+  }
+</style>

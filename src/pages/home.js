@@ -90,7 +90,7 @@ const initRace = () => {
 }
 
 export function initHome() {
-  initHeroShader()
+  // initHeroShader()
   initIconCards()
   initRace()
   console.log('hi home')
