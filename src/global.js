@@ -1336,12 +1336,191 @@ function initProgressCards() {
 }
 */
 
+/*
 function initProgressCards() {
   const wrap = document.querySelector(".progress-container");
   if (!wrap) return;
 
   const progressItems = [...wrap.querySelectorAll(".progress_item")];
   const visualItems = [...wrap.querySelectorAll(".progress-visual_item")];
+
+  const barHeightInitial = '4px'
+
+  const count = progressItems.length;
+  if (!count) return;
+
+  // One easing for every structural switch tween, matching the CSS --progress-ease
+  let progressEase = "power2.inOut";
+  if (typeof CustomEase !== "undefined") {
+    gsap.registerPlugin(CustomEase);
+    progressEase = CustomEase.create("progress", "M0,0 C0.6323,-0.0085 0.2618,0.999 1,1");
+  }
+
+  const AUTOPLAY_DURATION = 7;        // seconds the progress bar takes to fill
+  const SWITCH_DURATION = 0.8;        // expand / collapse (matches --progress-duration)
+  const CONTENT_FADE = 1;             // content reveal in
+  const CONTENT_OUT = 0.25;           // content fade out
+  const REVEAL_STAGGER = 0.03;
+
+  // Per-item element refs
+  const tabs = progressItems.map(item => ({
+    item,
+    line: item.querySelector(".progress_line"),
+    bar: item.querySelector(".progress_line-active"),
+    expand: item.querySelector(".progress_expand-w"),
+    reveal: [...item.querySelectorAll(".progress_expand > *")],
+  }));
+
+  // Capture the inactive line position + dimmed item opacity straight from the CSS,
+  // so GSAP animates to/from whatever Webflow already set (read before any is--active).
+  const rawTop = tabs[0].line ? getComputedStyle(tabs[0].line).top : "0px";
+  const inactiveLineTop = rawTop === "auto" ? "0px" : rawTop;
+  const inactiveOpacity = getComputedStyle(progressItems[0]).opacity;
+
+  let activeIndex = null;
+  let isAnimating = false;
+  let barTween = null;
+
+  // Measure each item's full (expanded) height -> the active line-height target.
+  // scrollHeight on the collapsed (height:0, overflow:hidden) expand gives the content
+  // height without any layout toggle.
+  let lineHeights = [];
+  function measureLineHeights() {
+    lineHeights = tabs.map((tab, i) => {
+      if (i === activeIndex) return tab.item.getBoundingClientRect().height; // already open
+      const collapsed = tab.item.getBoundingClientRect().height;             // expand at 0
+      const content = tab.expand ? tab.expand.scrollHeight : 0;
+      return collapsed + content;
+    });
+  }
+
+  // Collapsed starting state
+  tabs.forEach(tab => {
+    if (tab.expand) gsap.set(tab.expand, { display: "block", height: 0 });
+    if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: "1rem" });
+    if (tab.bar) gsap.set(tab.bar, { height: barHeightInitial });
+    if (tab.line) gsap.set(tab.line, { height: barHeightInitial, top: inactiveLineTop });
+  });
+  visualItems.forEach(v => gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: 0 }));
+
+  measureLineHeights();
+
+  // Fill the active item's progress bar, then advance to the next tab
+  function startProgressBar(index) {
+    if (barTween) barTween.kill();
+    const bar = tabs[index].bar;
+    if (!bar) return;
+    gsap.set(bar, { height: barHeightInitial });
+    barTween = gsap.to(bar, {
+      height: "100%",
+      duration: AUTOPLAY_DURATION,
+      ease: "none",
+      onComplete: () => switchTab((index + 1) % count),
+    });
+  }
+
+  function switchTab(index) {
+    if (isAnimating || index === activeIndex) return;
+    isAnimating = true;
+    if (barTween) barTween.kill();
+
+    const incoming = tabs[index];
+    const outgoing = activeIndex != null ? tabs[activeIndex] : null;
+    const incomingVisualItem = visualItems[index];
+    const incomingVisual = incomingVisualItem.querySelector('.progress-visual_visual-w')
+    const outgoingVisualItem = activeIndex != null ? visualItems[activeIndex] : null;
+    const outgoingVisual = outgoingVisualItem?.querySelector('.progress-visual_visual-w')
+
+    progressItems.forEach((el, i) => el.classList.toggle("is--active", i === index));
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        activeIndex = index;
+        isAnimating = false;
+        startProgressBar(index);
+      },
+    });
+
+    // Expand/collapse, line track and item opacity all run together (same start,
+    // duration, ease) so the list reflows in one smooth motion (no jump).
+    if (outgoing) {
+      if (outgoing.expand) tl.to(outgoing.expand, { height: 0, duration: SWITCH_DURATION, ease: progressEase }, 0);
+      if (outgoing.line) tl.to(outgoing.line, { height: barHeightInitial, top: inactiveLineTop, duration: SWITCH_DURATION, ease: progressEase }, 0);
+      tl.to(outgoing.item, { opacity: inactiveOpacity, duration: SWITCH_DURATION, ease: progressEase }, 0);
+    }
+    if (incoming.expand) {
+      tl.fromTo(incoming.expand,
+        { height: 0 },
+        { height: "auto", duration: SWITCH_DURATION, ease: progressEase }, 0);
+    }
+    if (incoming.line) {
+      tl.to(incoming.line, { height: lineHeights[index], top: 0, duration: SWITCH_DURATION, ease: progressEase }, 0);
+    }
+    tl.to(incoming.item, { opacity: 1, duration: SWITCH_DURATION, ease: progressEase }, 0);
+
+    // Outgoing content / bar / visual fade out immediately
+    if (outgoing) {
+      if (outgoing.reveal.length) tl.to(outgoing.reveal, { autoAlpha: 0, y: "-1rem", duration: CONTENT_OUT, ease: "power2.in" }, 0);
+      if (outgoing.bar) tl.to(outgoing.bar, { height: barHeightInitial, duration: 0.3, ease: "power4.out" }, 0);
+      if (outgoingVisual) tl.to(outgoingVisual, { autoAlpha: 0, y: "2rem", duration: 0.5, ease: "power2.in" }, 0);
+    }
+
+    // Incoming content reveals
+    if (incoming.reveal.length) {
+      tl.fromTo(incoming.reveal,
+        { autoAlpha: 0, y: "4rem" },
+        { autoAlpha: 1, y: "0rem", duration: CONTENT_FADE, ease: "power4.out", stagger: REVEAL_STAGGER },
+        0.2
+      );
+    }
+    // Incoming visual reveals
+    if (incomingVisual) {
+      tl.fromTo(incomingVisual,
+        { autoAlpha: 0, y: "4rem" },
+        { autoAlpha: 1, y: "0rem", duration: 0.8, ease: "power4.out" },
+        SWITCH_DURATION
+      );
+    }
+  }
+
+  // Start the autoplay loop once the section scrolls into view
+  ScrollTrigger.create({
+    trigger: ".progress-inner",
+    start: "top 50%",
+    once: true,
+    onEnter: () => switchTab(0),
+  });
+
+  // Re-measure on resize and snap the active line to the new height
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      measureLineHeights();
+      if (activeIndex != null && tabs[activeIndex].line) {
+        gsap.set(tabs[activeIndex].line, { height: lineHeights[activeIndex], top: 0 });
+      }
+    }, 150);
+  });
+
+  // Click a card to jump to it (but let the inner CTA link through)
+  progressItems.forEach((item, i) => {
+    item.addEventListener("click", (e) => {
+      if (e.target.closest(".button-w")) return;
+      switchTab(i);
+    });
+  });
+}
+*/
+
+function initProgressCards() {
+  const wrap = document.querySelector(".progress-container");
+  if (!wrap) return;
+
+  const progressItems = [...wrap.querySelectorAll(".progress_item")];
+  const visualItems = [...wrap.querySelectorAll(".progress-visual_item")];
+
+  const barHeightInitial = '4px'
 
   const count = progressItems.length;
   if (!count) return;
@@ -1356,6 +1535,7 @@ function initProgressCards() {
   // Per-item element refs
   const tabs = progressItems.map(item => ({
     item,
+    line: item.querySelector(".progress_line"),
     bar: item.querySelector(".progress_line-active"),
     expand: item.querySelector(".progress_expand-w"),
     reveal: [...item.querySelectorAll(".progress_expand > *")],
@@ -1365,7 +1545,8 @@ function initProgressCards() {
   tabs.forEach(tab => {
     if (tab.expand) gsap.set(tab.expand, { display: "block", height: 0 });
     if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: "1rem" });
-    if (tab.bar) gsap.set(tab.bar, { height: "0%" });
+    if (tab.bar) gsap.set(tab.bar, { height: barHeightInitial });
+    if (tab.line) gsap.set(tab.line, { height: barHeightInitial });
   });
   visualItems.forEach(v => gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: 0 }));
 
@@ -1378,7 +1559,7 @@ function initProgressCards() {
     if (barTween) barTween.kill();
     const bar = tabs[index].bar;
     if (!bar) return;
-    gsap.set(bar, { height: "0%" });
+    gsap.set(bar, { height: barHeightInitial });
     barTween = gsap.to(bar, {
       height: "100%",
       duration: AUTOPLAY_DURATION,
@@ -1420,10 +1601,21 @@ function initProgressCards() {
         { height: "auto", duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
     }
 
+    // Line track grows from the dot to the item's full (expanded) height, in lockstep
+    if (outgoing?.line) {
+      tl.to(outgoing.line, { height: barHeightInitial, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
+    }
+    if (incoming.line) {
+      const lineTarget = incoming.expand
+        ? incoming.item.getBoundingClientRect().height + incoming.expand.scrollHeight
+        : incoming.item.getBoundingClientRect().height;
+      tl.to(incoming.line, { height: lineTarget, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
+    }
+
     // Outgoing content / bar / visual fade out immediately
     if (outgoing) {
       if (outgoing.reveal.length) tl.to(outgoing.reveal, { autoAlpha: 0, y: "-1rem", duration: CONTENT_OUT, ease: "power2.in" }, 0);
-      if (outgoing.bar) tl.to(outgoing.bar, { height: "0%", duration: 0.3, ease: "power4.out" }, 0);
+      if (outgoing.bar) tl.to(outgoing.bar, { height: barHeightInitial, duration: 0.3, ease: "power4.out" }, 0);
       if (outgoingVisual) tl.to(outgoingVisual, { autoAlpha: 0, y: "2rem", duration: 0.5, ease: "power2.in" }, 0);
     }
 
@@ -1447,7 +1639,7 @@ function initProgressCards() {
 
   // Start the autoplay loop once the section scrolls into view
   ScrollTrigger.create({
-    trigger: ".progress-inner",
+    trigger: ".progress_layout",
     start: "top 50%",
     once: true,
     onEnter: () => switchTab(0),
