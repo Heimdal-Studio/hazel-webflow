@@ -1406,13 +1406,13 @@ function initProgressCards() {
   measureLineHeights();
 
   // Fill the active item's progress bar, then advance to the next tab
-  function startProgressBar(index) {
+  function startProgressBar(index, target) {
     if (barTween) barTween.kill();
     const bar = tabs[index].bar;
     if (!bar) return;
     gsap.set(bar, { height: barHeightInitial });
     barTween = gsap.to(bar, {
-      height: "100%",
+      height: target,
       duration: AUTOPLAY_DURATION,
       ease: "none",
       onComplete: () => switchTab((index + 1) % count),
@@ -1514,7 +1514,7 @@ function initProgressCards() {
 */
 
 function initProgressCards() {
-  const wrap = document.querySelector(".progress-container");
+  const wrap = document.querySelector("[data-init-progress]");
   if (!wrap) return;
 
   const progressItems = [...wrap.querySelectorAll(".progress_item")];
@@ -1537,6 +1537,7 @@ function initProgressCards() {
     item,
     line: item.querySelector(".progress_line"),
     bar: item.querySelector(".progress_line-active"),
+    cap: item.querySelector(".progress_line-cap"),
     expand: item.querySelector(".progress_expand-w"),
     reveal: [...item.querySelectorAll(".progress_expand > *")],
   }));
@@ -1547,79 +1548,71 @@ function initProgressCards() {
     if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: "1rem" });
     if (tab.bar) gsap.set(tab.bar, { height: barHeightInitial });
     if (tab.line) gsap.set(tab.line, { height: barHeightInitial });
+    if (tab.cap) gsap.set(tab.cap, { top: 0, y: parseFloat(barHeightInitial) });
   });
   visualItems.forEach(v => gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: 0 }));
 
   let activeIndex = null;
-  let isAnimating = false;
+  let currentTl = null;          // in-progress switch timeline (so we can interrupt it)
   let barTween = null;
+  const BAR_START_DELAY = 0.15;  // small pause before the timer bar starts filling
 
   // Fill the active item's progress bar, then advance to the next tab
-  function startProgressBar(index) {
+  function startProgressBar(index, target) {
     if (barTween) barTween.kill();
-    const bar = tabs[index].bar;
+    const { bar, cap } = tabs[index];
     if (!bar) return;
     gsap.set(bar, { height: barHeightInitial });
-    barTween = gsap.to(bar, {
-      height: "100%",
-      duration: AUTOPLAY_DURATION,
-      ease: "none",
+    if (cap) gsap.set(cap, { y: parseFloat(barHeightInitial) });
+    barTween = gsap.timeline({
+      delay: BAR_START_DELAY,
       onComplete: () => switchTab((index + 1) % count),
     });
+    barTween.to(bar, { height: target, duration: AUTOPLAY_DURATION, ease: "none" }, 0);
+    if (cap) barTween.to(cap, { y: target, duration: AUTOPLAY_DURATION, ease: "none" }, 0);
   }
 
   function switchTab(index) {
-    if (isAnimating || index === activeIndex) return;
-    isAnimating = true;
-    if (barTween) barTween.kill();
+    if (index === activeIndex) return;
+    activeIndex = index;              // claim immediately so re-clicks compare correctly
+    if (currentTl) currentTl.kill();  // interrupt any switch already in progress
 
     const incoming = tabs[index];
-    const outgoing = activeIndex != null ? tabs[activeIndex] : null;
-    const incomingVisualItem = visualItems[index];
-    const incomingVisual = incomingVisualItem.querySelector('.progress-visual_visual-w')
-    const outgoingVisualItem = activeIndex != null ? visualItems[activeIndex] : null;
-    const outgoingVisual = outgoingVisualItem?.querySelector('.progress-visual_visual-w')
+    const incomingVisual = visualItems[index].querySelector('.progress-visual_visual-w');
 
     progressItems.forEach((el, i) => el.classList.toggle("is--active", i === index));
 
-    const tl = gsap.timeline({
-      onComplete: () => {
-        activeIndex = index;
-        isAnimating = false;
-        startProgressBar(index);
-      },
+    // Item's final (expanded) height — drives both the line-track target and the
+    // progress-bar fill (the track is still growing when the bar starts, so we
+    // can't use "100%").
+    const lineTarget = incoming.expand
+      ? incoming.item.getBoundingClientRect().height + incoming.expand.scrollHeight
+      : incoming.item.getBoundingClientRect().height;
+
+    // Start the timer the moment we switch, in parallel with the transition
+    startProgressBar(index, lineTarget);
+
+    const tl = gsap.timeline({ onComplete: () => { if (currentTl === tl) currentTl = null; } });
+    currentTl = tl;
+
+    // Collapse every other tab from its CURRENT state — `to` (not `fromTo`) means an
+    // interrupted, half-open item animates from where it is, never popping or stranding.
+    tabs.forEach((tab, i) => {
+      if (i === index) return;
+      if (tab.expand) tl.to(tab.expand, { height: 0, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
+      if (tab.line) tl.to(tab.line, { height: barHeightInitial, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
+      if (tab.bar) tl.to(tab.bar, { height: barHeightInitial, duration: 0.3, ease: "power4.out" }, 0);
+      if (tab.cap) tl.to(tab.cap, { y: parseFloat(barHeightInitial), duration: 0.3, ease: "power4.out" }, 0);
+      if (tab.reveal.length) tl.to(tab.reveal, { autoAlpha: 0, y: "-1rem", duration: CONTENT_OUT, ease: "power2.in" }, 0);
+      const vis = visualItems[i].querySelector('.progress-visual_visual-w');
+      if (vis) tl.to(vis, { autoAlpha: 0, y: "2rem", duration: 0.5, ease: "power2.in" }, 0);
     });
 
-    // Collapse + expand run together (same start, duration, ease) so the list
-    // reflows in one smooth motion instead of growing then shrinking (no jump).
-    if (outgoing?.expand) {
-      tl.to(outgoing.expand, { height: 0, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
-    }
-    if (incoming.expand) {
-      tl.fromTo(incoming.expand,
-        { height: 0 },
-        { height: "auto", duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
-    }
+    // Expand incoming from its current state (`to`, not `fromTo`, so height never pops)
+    if (incoming.expand) tl.to(incoming.expand, { height: "auto", duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
+    if (incoming.line) tl.to(incoming.line, { height: lineTarget, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
 
-    // Line track grows from the dot to the item's full (expanded) height, in lockstep
-    if (outgoing?.line) {
-      tl.to(outgoing.line, { height: barHeightInitial, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
-    }
-    if (incoming.line) {
-      const lineTarget = incoming.expand
-        ? incoming.item.getBoundingClientRect().height + incoming.expand.scrollHeight
-        : incoming.item.getBoundingClientRect().height;
-      tl.to(incoming.line, { height: lineTarget, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
-    }
-
-    // Outgoing content / bar / visual fade out immediately
-    if (outgoing) {
-      if (outgoing.reveal.length) tl.to(outgoing.reveal, { autoAlpha: 0, y: "-1rem", duration: CONTENT_OUT, ease: "power2.in" }, 0);
-      if (outgoing.bar) tl.to(outgoing.bar, { height: barHeightInitial, duration: 0.3, ease: "power4.out" }, 0);
-      if (outgoingVisual) tl.to(outgoingVisual, { autoAlpha: 0, y: "2rem", duration: 0.5, ease: "power2.in" }, 0);
-    }
-
-    // Incoming content reveals
+    // Incoming content + visual reveal
     if (incoming.reveal.length) {
       tl.fromTo(incoming.reveal,
         { autoAlpha: 0, y: "4rem" },
@@ -1627,7 +1620,6 @@ function initProgressCards() {
         0.2
       );
     }
-    // Incoming visual reveals
     if (incomingVisual) {
       tl.fromTo(incomingVisual,
         { autoAlpha: 0, y: "4rem" },
@@ -1639,7 +1631,7 @@ function initProgressCards() {
 
   // Start the autoplay loop once the section scrolls into view
   ScrollTrigger.create({
-    trigger: ".progress_layout",
+    trigger: "[data-init-progress]",
     start: "top 50%",
     once: true,
     onEnter: () => switchTab(0),
