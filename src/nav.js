@@ -847,24 +847,21 @@ function initNavDropdown() {
       }
 
       // ── baseline (closed) ────────────────────────────────────────────
+      // ponytail: mobile shows the panel expanded inline via CSS — JS leaves it alone.
       if (backdrop) gsap.set(backdrop, { autoAlpha: 0 })
       toggles.forEach((toggle) => {
         const panel = panelOf(toggle)
         const icon = iconOf(toggle)
         setExpanded(toggle, false)
-        setPanelState(panel, false)
         if (icon) gsap.set(icon, { rotation: 0 })
-        if (panel) {
-          if (isDesktop) gsap.set(panel, { autoAlpha: 0, y: 0, pointerEvents: 'none', clearProps: 'height' })
-          else
-            gsap.set(panel, {
-              autoAlpha: 1,
-              height: 0,
-              overflow: 'hidden',
-              pointerEvents: 'none',
-              clearProps: 'transform',
-            })
+        if (panel && isDesktop) {
+          setPanelState(panel, false)
+          gsap.set(panel, { autoAlpha: 0, y: 0, pointerEvents: 'none', clearProps: 'height' })
           gsap.set(fadesOf(panel), { autoAlpha: 0, x: 0, y: 0 })
+        } else if (panel) {
+          // mobile: panel is open inline — override the hidden base class, make it clickable
+          gsap.set(panel, { autoAlpha: 1, pointerEvents: 'auto' })
+          gsap.set(fadesOf(panel), { autoAlpha: 1 })
         }
       })
 
@@ -969,12 +966,7 @@ function initNavDropdown() {
         menuWrap.setAttribute('data-menu-open', 'false')
 
         on(burger, 'click', () => (menuOpen ? closeMenu() : openMenu()))
-        toggles.forEach((toggle) =>
-          on(toggle, 'click', (e) => {
-            e.preventDefault()
-            togglePanel(toggle)
-          })
-        )
+        // ponytail: no mobile accordion — panel is expanded inline via CSS.
         on(document, 'keydown', (e) => {
           if (e.key !== 'Escape') return
           if (openToggle) closePanel(openToggle)

@@ -1,4 +1,7 @@
+import { MQ } from './utils/breakpoints.js'
 import { splitReveal } from './utils/splitReveal.js'
+
+CustomEase.create('hazel-ease', 'M0,0 C0.0846,-0.0003 0,1 1,1')
 
 function initTextAnimations() {
   document.querySelectorAll('[data-split]').forEach((el) => {
@@ -534,18 +537,18 @@ function initButton(container = document) {
 
     const text = button.textContent
     button.innerHTML = ''
-      ;[...text].forEach((char, index) => {
-        const span = document.createElement('span')
-        span.textContent = char
-        span.style.transitionDelay = `${index * offsetIncrement}s`
+    ;[...text].forEach((char, index) => {
+      const span = document.createElement('span')
+      span.textContent = char
+      span.style.transitionDelay = `${index * offsetIncrement}s`
 
-        // Handle spaces explicitly
-        if (char === ' ') {
-          span.style.whiteSpace = 'pre' // Preserve space width
-        }
+      // Handle spaces explicitly
+      if (char === ' ') {
+        span.style.whiteSpace = 'pre' // Preserve space width
+      }
 
-        button.appendChild(span)
-      })
+      button.appendChild(span)
+    })
   })
 }
 
@@ -892,52 +895,51 @@ const initFaqs = () => {
 }
 
 function initPriceCards(next = document) {
-  ScrollTrigger.refresh();
-  let wrap = next.querySelector("[data-price-status]");
+  ScrollTrigger.refresh()
+  let wrap = next.querySelector('[data-price-status]')
 
   if (!wrap) {
-    return;
+    return
   }
 
   if (wrap) {
-    const buttons = wrap.querySelectorAll("[data-price-toggle]")
+    const buttons = wrap.querySelectorAll('[data-price-toggle]')
     const row = wrap
 
-    buttons.forEach(button => {
-      const type = button.getAttribute("data-price-toggle")
-      button.addEventListener("click", () => {
-        if (row.getAttribute("data-price-status") === type) return
-        row.setAttribute("data-price-status", type)
-        buttons.forEach(btn => btn.classList.remove("is--active"))
-        button.classList.add("is--active")
+    buttons.forEach((button) => {
+      const type = button.getAttribute('data-price-toggle')
+      button.addEventListener('click', () => {
+        if (row.getAttribute('data-price-status') === type) return
+        row.setAttribute('data-price-status', type)
+        buttons.forEach((btn) => btn.classList.remove('is--active'))
+        button.classList.add('is--active')
       })
     })
-
   } else {
-    const left = wrap.querySelector(".p-card.is--left");
-    const right = wrap.querySelector(".p-card.is--right");
-    const center = wrap.querySelector(".p-card.is--center");
-    const anim = wrap.querySelector("[data-lottie]");
-    const cards = wrap.querySelectorAll(".p-card");
-    const sub = wrap.querySelectorAll(".p-card__sub");
+    const left = wrap.querySelector('.p-card.is--left')
+    const right = wrap.querySelector('.p-card.is--right')
+    const center = wrap.querySelector('.p-card.is--center')
+    const anim = wrap.querySelector('[data-lottie]')
+    const cards = wrap.querySelectorAll('.p-card')
+    const sub = wrap.querySelectorAll('.p-card__sub')
 
     const animation = lottie.loadAnimation({
       container: anim,
-      renderer: "svg",
+      renderer: 'svg',
       loop: false,
       autoplay: false,
-      path: anim.getAttribute("data-lottie-path"),
-    });
+      path: anim.getAttribute('data-lottie-path'),
+    })
 
     gsap
       .timeline({
         scrollTrigger: {
           trigger: wrap,
-          start: "top bottom",
-          toggleActions: "play none none reverse",
+          start: 'top bottom',
+          toggleActions: 'play none none reverse',
         },
         onReverseComplete: () => {
-          animation.goToAndStop(0, true);
+          animation.goToAndStop(0, true)
         },
       })
       .from(left, {
@@ -945,7 +947,7 @@ function initPriceCards(next = document) {
         yPercent: 30,
         rotate: 6,
         duration: 0.8,
-        ease: "back.out(1.8)",
+        ease: 'back.out(1.8)',
       })
       .from(
         right,
@@ -954,7 +956,7 @@ function initPriceCards(next = document) {
           yPercent: 30,
           rotate: -6,
           duration: 0.8,
-          ease: "back.out(1.8)",
+          ease: 'back.out(1.8)',
         },
         0
       )
@@ -964,97 +966,96 @@ function initPriceCards(next = document) {
           yPercent: 10,
           scale: 0.85,
           duration: 0.8,
-          ease: "back.out(1.5)",
+          ease: 'back.out(1.5)',
           onStart: () => {
             gsap.delayedCall(0.5, () => {
-              animation.play();
-            });
+              animation.play()
+            })
           },
         },
         0
-      );
+      )
 
     // HOVERING
     cards.forEach((card) => {
-      card.addEventListener("mouseenter", () => {
-        cards.forEach((c) => c.classList.remove("is--active"));
-        card.classList.add("is--active");
+      card.addEventListener('mouseenter', () => {
+        cards.forEach((c) => c.classList.remove('is--active'))
+        card.classList.add('is--active')
         gsap.to(card, {
           scale: prefersReducedMotion() ? 1 : 1.1,
           duration: 0.3,
-          ease: "back.out(1.8)",
-          overwrite: "auto",
-        });
-      });
+          ease: 'back.out(1.8)',
+          overwrite: 'auto',
+        })
+      })
 
-      card.addEventListener("mouseleave", () => {
-        card.classList.remove("is--active");
-        center.classList.add("is--active");
+      card.addEventListener('mouseleave', () => {
+        card.classList.remove('is--active')
+        center.classList.add('is--active')
         gsap.to(card, {
           scale: 1,
           duration: 0.3,
-          ease: "back.out(1.5)",
-          overwrite: "auto",
-        });
-      });
-    });
+          ease: 'back.out(1.5)',
+          overwrite: 'auto',
+        })
+      })
+    })
 
     // PRICE CHANGE
-    const solo = next.querySelector("[data-price-solo]");
-    const joint = next.querySelector("[data-price-joint]");
-    const toggleTl = gsap.timeline({ paused: true });
+    const solo = next.querySelector('[data-price-solo]')
+    const joint = next.querySelector('[data-price-joint]')
+    const toggleTl = gsap.timeline({ paused: true })
     toggleTl
-      .to(".p-card__heading", {
-        y: "-0.9em",
+      .to('.p-card__heading', {
+        y: '-0.9em',
         duration: 0.5,
-        ease: "back.inOut(2)",
+        ease: 'back.inOut(2)',
       })
       .to(
-        ".p-card__eyebrow .eyebrow",
+        '.p-card__eyebrow .eyebrow',
         {
           yPercent: -100,
           duration: 0.5,
-          ease: "back.inOut(2)",
+          ease: 'back.inOut(2)',
         },
         0
       )
       .to(
-        ".p-card__sign.offset",
+        '.p-card__sign.offset',
         {
-          left: "0em",
+          left: '0em',
           duration: 0.5,
-          ease: "back.inOut(2)",
+          ease: 'back.inOut(2)',
         },
         0
       )
       .to(
         sub,
         {
-          x: "0em",
+          x: '0em',
           duration: 0.5,
-          ease: "back.inOut(2)",
+          ease: 'back.inOut(2)',
         },
         0
-      );
+      )
 
-    solo.addEventListener("click", () => {
-      if (!solo.classList.contains("is--active")) {
-        joint.classList.remove("is--active");
-        solo.classList.add("is--active");
-        toggleTl.reverse();
+    solo.addEventListener('click', () => {
+      if (!solo.classList.contains('is--active')) {
+        joint.classList.remove('is--active')
+        solo.classList.add('is--active')
+        toggleTl.reverse()
       }
-    });
+    })
 
-    joint.addEventListener("click", () => {
-      if (!joint.classList.contains("is--active")) {
-        solo.classList.remove("is--active");
-        joint.classList.add("is--active");
-        toggleTl.play();
+    joint.addEventListener('click', () => {
+      if (!joint.classList.contains('is--active')) {
+        solo.classList.remove('is--active')
+        joint.classList.add('is--active')
+        toggleTl.play()
       }
-    });
-    wrap = null;
+    })
+    wrap = null
   }
-
 }
 
 const initHighlightText = () => {
@@ -1127,7 +1128,11 @@ const initRevealText = () => {
 
               gsap.set(word, { autoAlpha: 0, color: '#E07A5F', y: 50 + dist * 20 })
               tl.to(word, { autoAlpha: 1, duration: 0.2, ease: 'none' }, baseTime + staggerDelay)
-              tl.to(word, { color: originalColor, y: 0, ease: 'power3.out', duration: 1 }, baseTime + staggerDelay)
+              tl.to(
+                word,
+                { color: originalColor, y: 0, ease: 'power3.out', duration: 1 },
+                baseTime + staggerDelay
+              )
             })
           })
         })
@@ -1144,7 +1149,9 @@ const initRevealText2 = () => {
       onSplit(split) {
         return gsap.context(() => {
           const originalColor = getComputedStyle(el).color
-          const highlightColor = getComputedStyle(el).getPropertyValue('--_theme---text-color--text-highlight').trim()
+          const highlightColor = getComputedStyle(el)
+            .getPropertyValue('--_theme---text-color--text-highlight')
+            .trim()
 
           gsap.set(split.chars, { color: highlightColor, opacity: 0.2 })
 
@@ -1175,8 +1182,21 @@ const initRevealText2 = () => {
             })
           })
 
-          tl.to(allChars, { opacity: 1, duration: 0.2, ease: 'power1.inOut', stagger: (i) => offsets[i] }, 0)
-          tl.to(allChars, { color: originalColor, duration: .4, ease: 'power3.out', stagger: (i) => offsets[i] + 0.2 }, 0)
+          tl.to(
+            allChars,
+            { opacity: 1, duration: 0.2, ease: 'power1.inOut', stagger: (i) => offsets[i] },
+            0
+          )
+          tl.to(
+            allChars,
+            {
+              color: originalColor,
+              duration: 0.4,
+              ease: 'power3.out',
+              stagger: (i) => offsets[i] + 0.2,
+            },
+            0
+          )
         })
       },
     })
@@ -1514,136 +1534,161 @@ function initProgressCards() {
 */
 
 function initProgressCards() {
-  const wrap = document.querySelector("[data-init-progress]");
-  if (!wrap) return;
+  const wrap = document.querySelector('[data-init-progress]')
+  if (!wrap) return
 
-  const progressItems = [...wrap.querySelectorAll(".progress_item")];
-  const visualItems = [...wrap.querySelectorAll(".progress-visual_item")];
+  const progressItems = [...wrap.querySelectorAll('.progress_item')]
+  const visualItems = [...wrap.querySelectorAll('.progress-visual_item')]
 
   const barHeightInitial = '4px'
 
-  const count = progressItems.length;
-  if (!count) return;
+  const count = progressItems.length
+  if (!count) return
 
-  const AUTOPLAY_DURATION = 7;        // seconds the progress bar takes to fill
-  const SWITCH_DURATION = 0.6;        // expand / collapse (kept in lockstep)
-  const EXPAND_EASE = "power2.inOut"; // shared by collapse + expand so heights track
-  const CONTENT_FADE = 1;          // content reveal in
-  const CONTENT_OUT = 0.25;           // content fade out
-  const REVEAL_STAGGER = 0.03;
+  const AUTOPLAY_DURATION = 7 // seconds the progress bar takes to fill
+  const SWITCH_DURATION = 0.6 // expand / collapse (kept in lockstep)
+  const EXPAND_EASE = 'power2.inOut' // shared by collapse + expand so heights track
+  const CONTENT_FADE = 1 // content reveal in
+  const CONTENT_OUT = 0.25 // content fade out
+  const REVEAL_STAGGER = 0.03
 
   // Per-item element refs
-  const tabs = progressItems.map(item => ({
+  const tabs = progressItems.map((item) => ({
     item,
-    line: item.querySelector(".progress_line"),
-    bar: item.querySelector(".progress_line-active"),
-    cap: item.querySelector(".progress_line-cap"),
-    expand: item.querySelector(".progress_expand-w"),
-    reveal: [...item.querySelectorAll(".progress_expand > *")],
-  }));
+    line: item.querySelector('.progress_line'),
+    bar: item.querySelector('.progress_line-active'),
+    cap: item.querySelector('.progress_line-cap'),
+    expand: item.querySelector('.progress_expand-w'),
+    reveal: [...item.querySelectorAll('.progress_expand > *')],
+  }))
 
   // Collapsed starting state
-  tabs.forEach(tab => {
-    if (tab.expand) gsap.set(tab.expand, { display: "block", height: 0 });
-    if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: "1rem" });
-    if (tab.bar) gsap.set(tab.bar, { height: barHeightInitial });
-    if (tab.line) gsap.set(tab.line, { height: barHeightInitial });
-    if (tab.cap) gsap.set(tab.cap, { top: 0, y: parseFloat(barHeightInitial) });
-  });
-  visualItems.forEach(v => gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: 0 }));
+  tabs.forEach((tab) => {
+    if (tab.expand) gsap.set(tab.expand, { display: 'block', height: 0 })
+    if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: '1rem' })
+    if (tab.bar) gsap.set(tab.bar, { height: barHeightInitial })
+    if (tab.line) gsap.set(tab.line, { height: barHeightInitial })
+    if (tab.cap) gsap.set(tab.cap, { top: 0, y: parseFloat(barHeightInitial) })
+  })
+  visualItems.forEach((v) =>
+    gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: 0 })
+  )
 
-  let activeIndex = null;
-  let currentTl = null;          // in-progress switch timeline (so we can interrupt it)
-  let barTween = null;
-  const BAR_START_DELAY = 0.15;  // small pause before the timer bar starts filling
+  let activeIndex = null
+  let currentTl = null // in-progress switch timeline (so we can interrupt it)
+  let barTween = null
+  const BAR_START_DELAY = 0.15 // small pause before the timer bar starts filling
 
   // Fill the active item's progress bar, then advance to the next tab
   function startProgressBar(index, target) {
-    if (barTween) barTween.kill();
-    const { bar, cap } = tabs[index];
-    if (!bar) return;
-    gsap.set(bar, { height: barHeightInitial });
-    if (cap) gsap.set(cap, { y: parseFloat(barHeightInitial) });
+    if (barTween) barTween.kill()
+    const { bar, cap } = tabs[index]
+    if (!bar) return
+    gsap.set(bar, { height: barHeightInitial })
+    if (cap) gsap.set(cap, { y: parseFloat(barHeightInitial) })
     barTween = gsap.timeline({
       delay: BAR_START_DELAY,
       onComplete: () => switchTab((index + 1) % count),
-    });
-    barTween.to(bar, { height: target, duration: AUTOPLAY_DURATION, ease: "none" }, 0);
-    if (cap) barTween.to(cap, { y: target, duration: AUTOPLAY_DURATION, ease: "none" }, 0);
+    })
+    barTween.to(bar, { height: target, duration: AUTOPLAY_DURATION, ease: 'none' }, 0)
+    if (cap) barTween.to(cap, { y: target, duration: AUTOPLAY_DURATION, ease: 'none' }, 0)
   }
 
   function switchTab(index) {
-    if (index === activeIndex) return;
-    activeIndex = index;              // claim immediately so re-clicks compare correctly
-    if (currentTl) currentTl.kill();  // interrupt any switch already in progress
+    if (index === activeIndex) return
+    activeIndex = index // claim immediately so re-clicks compare correctly
+    if (currentTl) currentTl.kill() // interrupt any switch already in progress
 
-    const incoming = tabs[index];
-    const incomingVisual = visualItems[index].querySelector('.progress-visual_visual-w');
+    const incoming = tabs[index]
+    const incomingVisual = visualItems[index].querySelector('.progress-visual_visual-w')
 
-    progressItems.forEach((el, i) => el.classList.toggle("is--active", i === index));
+    progressItems.forEach((el, i) => el.classList.toggle('is--active', i === index))
 
     // Item's final (expanded) height — drives both the line-track target and the
     // progress-bar fill (the track is still growing when the bar starts, so we
     // can't use "100%").
     const lineTarget = incoming.expand
       ? incoming.item.getBoundingClientRect().height + incoming.expand.scrollHeight
-      : incoming.item.getBoundingClientRect().height;
+      : incoming.item.getBoundingClientRect().height
 
     // Start the timer the moment we switch, in parallel with the transition
-    startProgressBar(index, lineTarget);
+    startProgressBar(index, lineTarget)
 
-    const tl = gsap.timeline({ onComplete: () => { if (currentTl === tl) currentTl = null; } });
-    currentTl = tl;
+    const tl = gsap.timeline({
+      onComplete: () => {
+        if (currentTl === tl) currentTl = null
+      },
+    })
+    currentTl = tl
 
     // Collapse every other tab from its CURRENT state — `to` (not `fromTo`) means an
     // interrupted, half-open item animates from where it is, never popping or stranding.
     tabs.forEach((tab, i) => {
-      if (i === index) return;
-      if (tab.expand) tl.to(tab.expand, { height: 0, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
-      if (tab.line) tl.to(tab.line, { height: barHeightInitial, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
-      if (tab.bar) tl.to(tab.bar, { height: barHeightInitial, duration: 0.3, ease: "power4.out" }, 0);
-      if (tab.cap) tl.to(tab.cap, { y: parseFloat(barHeightInitial), duration: 0.3, ease: "power4.out" }, 0);
-      if (tab.reveal.length) tl.to(tab.reveal, { autoAlpha: 0, y: "-1rem", duration: CONTENT_OUT, ease: "power2.in" }, 0);
-      const vis = visualItems[i].querySelector('.progress-visual_visual-w');
-      if (vis) tl.to(vis, { autoAlpha: 0, y: "2rem", duration: 0.5, ease: "power2.in" }, 0);
-    });
+      if (i === index) return
+      if (tab.expand)
+        tl.to(tab.expand, { height: 0, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0)
+      if (tab.line)
+        tl.to(
+          tab.line,
+          { height: barHeightInitial, duration: SWITCH_DURATION, ease: EXPAND_EASE },
+          0
+        )
+      if (tab.bar)
+        tl.to(tab.bar, { height: barHeightInitial, duration: 0.3, ease: 'power4.out' }, 0)
+      if (tab.cap)
+        tl.to(tab.cap, { y: parseFloat(barHeightInitial), duration: 0.3, ease: 'power4.out' }, 0)
+      if (tab.reveal.length)
+        tl.to(tab.reveal, { autoAlpha: 0, y: '-1rem', duration: CONTENT_OUT, ease: 'power2.in' }, 0)
+      const vis = visualItems[i].querySelector('.progress-visual_visual-w')
+      if (vis) tl.to(vis, { autoAlpha: 0, y: '2rem', duration: 0.5, ease: 'power2.in' }, 0)
+    })
 
     // Expand incoming from its current state (`to`, not `fromTo`, so height never pops)
-    if (incoming.expand) tl.to(incoming.expand, { height: "auto", duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
-    if (incoming.line) tl.to(incoming.line, { height: lineTarget, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0);
+    if (incoming.expand)
+      tl.to(incoming.expand, { height: 'auto', duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0)
+    if (incoming.line)
+      tl.to(incoming.line, { height: lineTarget, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0)
 
     // Incoming content + visual reveal
     if (incoming.reveal.length) {
-      tl.fromTo(incoming.reveal,
-        { autoAlpha: 0, y: "4rem" },
-        { autoAlpha: 1, y: "0rem", duration: CONTENT_FADE, ease: "power4.out", stagger: REVEAL_STAGGER },
+      tl.fromTo(
+        incoming.reveal,
+        { autoAlpha: 0, y: '4rem' },
+        {
+          autoAlpha: 1,
+          y: '0rem',
+          duration: CONTENT_FADE,
+          ease: 'power4.out',
+          stagger: REVEAL_STAGGER,
+        },
         0.2
-      );
+      )
     }
     if (incomingVisual) {
-      tl.fromTo(incomingVisual,
-        { autoAlpha: 0, y: "4rem" },
-        { autoAlpha: 1, y: "0rem", duration: 0.8, ease: "power4.out" },
+      tl.fromTo(
+        incomingVisual,
+        { autoAlpha: 0, y: '4rem' },
+        { autoAlpha: 1, y: '0rem', duration: 0.8, ease: 'power4.out' },
         SWITCH_DURATION
-      );
+      )
     }
   }
 
   // Start the autoplay loop once the section scrolls into view
   ScrollTrigger.create({
-    trigger: "[data-init-progress]",
-    start: "top 50%",
+    trigger: '[data-init-progress]',
+    start: 'top 50%',
     once: true,
     onEnter: () => switchTab(0),
-  });
+  })
 
   // Click a card to jump to it (but let the inner CTA link through)
   progressItems.forEach((item, i) => {
-    item.addEventListener("click", (e) => {
-      if (e.target.closest(".button-w")) return;
-      switchTab(i);
-    });
-  });
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.button-w')) return
+      switchTab(i)
+    })
+  })
 }
 
 function initTypewriter() {
@@ -1674,92 +1719,117 @@ function initTypewriter() {
 
   document.querySelectorAll('[data-typewriter="load"]').forEach((el) => animate(el, null))
 
-  document.querySelectorAll('[data-typewriter="scroll"]').forEach((el) =>
-    animate(el, { trigger: el, start: 'top bottom', once: true })
-  )
+  document
+    .querySelectorAll('[data-typewriter="scroll"]')
+    .forEach((el) => animate(el, { trigger: el, start: 'top bottom', once: true }))
 }
 
-  const initFooterGradient = () => {
-    const CONFIG = {
-      logo: '.footer_logo',
-      hoverArea: '.footer_component',
-      duration: 0.5,
-      ease: 'power3',
-      fade: 0.35,
-      shimmerStops: ['#DF9A65', '#DBA878', '#EBBE93']
-    };
-
-    const SVG_NS = 'http://www.w3.org/2000/svg';
-    let uid = 0;
-
-    function initShimmer(logo) {
-      const svg = logo.querySelector('svg');
-      if (!svg) return;
-
-      const area = logo.closest(CONFIG.hoverArea) ||
-                   document.querySelector(CONFIG.hoverArea) || logo;
-
-      const shimmer = svg.cloneNode(true);
-      shimmer.removeAttribute('aria-label');
-      shimmer.setAttribute('aria-hidden', 'true');
-      shimmer.classList.add('hz-shimmer');
-      shimmer.querySelectorAll('defs').forEach((d) => d.remove());
-
-      const gid = 'hzShimmerGrad' + (uid++);
-      const vb = (shimmer.getAttribute('viewBox') || '0 0 100 100').split(/\s+/).map(Number);
-      const defs = document.createElementNS(SVG_NS, 'defs');
-      const grad = document.createElementNS(SVG_NS, 'linearGradient');
-      grad.setAttribute('id', gid);
-      grad.setAttribute('gradientUnits', 'userSpaceOnUse');
-      grad.setAttribute('x1', vb[0]);
-      grad.setAttribute('y1', vb[1]);
-      grad.setAttribute('x2', vb[0] + vb[2]);
-      grad.setAttribute('y2', vb[1] + vb[3]);
-      CONFIG.shimmerStops.forEach((color, i, arr) => {
-        const stop = document.createElementNS(SVG_NS, 'stop');
-        stop.setAttribute('offset', arr.length > 1 ? i / (arr.length - 1) : 0);
-        stop.setAttribute('stop-color', color);
-        grad.appendChild(stop);
-      });
-      defs.appendChild(grad);
-      shimmer.insertBefore(defs, shimmer.firstChild);
-      shimmer.querySelectorAll('path').forEach((p) => p.setAttribute('fill', 'url(#' + gid + ')'));
-      logo.appendChild(shimmer);
-
-      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-      const dur = reduce ? 0 : CONFIG.duration;
-
-      const xTo = gsap.quickTo(logo, '--xp', { duration: dur, ease: CONFIG.ease });
-      const yTo = gsap.quickTo(logo, '--yp', { duration: dur, ease: CONFIG.ease });
-
-      const toPct = (e) => {
-        const r = logo.getBoundingClientRect();
-        return [
-          ((e.clientX - r.left) / r.width) * 100,
-          ((e.clientY - r.top) / r.height) * 100
-        ];
-      };
-
-      area.addEventListener('pointerenter', (e) => {
-        const [x, y] = toPct(e);
-        gsap.set(logo, { '--xp': x, '--yp': y });
-        gsap.to(shimmer, { opacity: 1, duration: CONFIG.fade, overwrite: true });
-      });
-      area.addEventListener('pointermove', (e) => {
-        const [x, y] = toPct(e);
-        xTo(x);
-        yTo(y);
-      });
-      area.addEventListener('pointerleave', () => {
-        gsap.to(shimmer, { opacity: 0, duration: CONFIG.fade, overwrite: true });
-      });
-    }
-
-    function boot() {
-      document.querySelectorAll(CONFIG.logo).forEach(initShimmer);
-    }
-    boot()
+const initFooterGradient = () => {
+  const CONFIG = {
+    logo: '.footer_logo',
+    hoverArea: '.footer_component',
+    duration: 0.5,
+    ease: 'power3',
+    fade: 0.35,
+    shimmerStops: ['#DF9A65', '#DBA878', '#EBBE93'],
   }
+
+  const SVG_NS = 'http://www.w3.org/2000/svg'
+  let uid = 0
+
+  function initShimmer(logo) {
+    const svg = logo.querySelector('svg')
+    if (!svg) return
+
+    const area = logo.closest(CONFIG.hoverArea) || document.querySelector(CONFIG.hoverArea) || logo
+
+    const shimmer = svg.cloneNode(true)
+    shimmer.removeAttribute('aria-label')
+    shimmer.setAttribute('aria-hidden', 'true')
+    shimmer.classList.add('hz-shimmer')
+    shimmer.querySelectorAll('defs').forEach((d) => d.remove())
+
+    const gid = 'hzShimmerGrad' + uid++
+    const vb = (shimmer.getAttribute('viewBox') || '0 0 100 100').split(/\s+/).map(Number)
+    const defs = document.createElementNS(SVG_NS, 'defs')
+    const grad = document.createElementNS(SVG_NS, 'linearGradient')
+    grad.setAttribute('id', gid)
+    grad.setAttribute('gradientUnits', 'userSpaceOnUse')
+    grad.setAttribute('x1', vb[0])
+    grad.setAttribute('y1', vb[1])
+    grad.setAttribute('x2', vb[0] + vb[2])
+    grad.setAttribute('y2', vb[1] + vb[3])
+    CONFIG.shimmerStops.forEach((color, i, arr) => {
+      const stop = document.createElementNS(SVG_NS, 'stop')
+      stop.setAttribute('offset', arr.length > 1 ? i / (arr.length - 1) : 0)
+      stop.setAttribute('stop-color', color)
+      grad.appendChild(stop)
+    })
+    defs.appendChild(grad)
+    shimmer.insertBefore(defs, shimmer.firstChild)
+    shimmer.querySelectorAll('path').forEach((p) => p.setAttribute('fill', 'url(#' + gid + ')'))
+    logo.appendChild(shimmer)
+
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const dur = reduce ? 0 : CONFIG.duration
+
+    const xTo = gsap.quickTo(logo, '--xp', { duration: dur, ease: CONFIG.ease })
+    const yTo = gsap.quickTo(logo, '--yp', { duration: dur, ease: CONFIG.ease })
+
+    const toPct = (e) => {
+      const r = logo.getBoundingClientRect()
+      return [((e.clientX - r.left) / r.width) * 100, ((e.clientY - r.top) / r.height) * 100]
+    }
+
+    area.addEventListener('pointerenter', (e) => {
+      const [x, y] = toPct(e)
+      gsap.set(logo, { '--xp': x, '--yp': y })
+      gsap.to(shimmer, { opacity: 1, duration: CONFIG.fade, overwrite: true })
+    })
+    area.addEventListener('pointermove', (e) => {
+      const [x, y] = toPct(e)
+      xTo(x)
+      yTo(y)
+    })
+    area.addEventListener('pointerleave', () => {
+      gsap.to(shimmer, { opacity: 0, duration: CONFIG.fade, overwrite: true })
+    })
+  }
+
+  function boot() {
+    document.querySelectorAll(CONFIG.logo).forEach(initShimmer)
+  }
+  boot()
+}
+
+const initAnimateCards = () => {
+  if (!document.querySelector('[data-animate-cards]')) return
+
+  const cards = document.querySelectorAll('[data-animate-cards]')
+
+  const mm = gsap.matchMedia()
+  mm.add(MQ.tabletUp, () => {
+    cards.forEach((el) => {
+      const ui = el.querySelectorAll('[data-card-ui]')
+      gsap.set(ui, { y: 100 })
+      gsap
+        .timeline({
+          defaults: { ease: 'hazel-ease' },
+          scrollTrigger: {
+            trigger: el,
+            start: 'clamp(top 70%)',
+            invalidateOnRefresh: true,
+          },
+        })
+        // from: 'center' makes a 2-card row equidistant (no stagger), so fall back to 'start'
+        .to(ui, {
+          y: 0,
+          duration: 1.2,
+          stagger: { each: 0.1, from: ui.length > 2 ? 'center' : 'start' },
+        })
+    })
+  })
+}
 
 export function initGlobal() {
   initTextAnimations()
@@ -1782,4 +1852,6 @@ export function initGlobal() {
   initTypewriter()
 
   initFooterGradient()
+
+  initAnimateCards()
 }
