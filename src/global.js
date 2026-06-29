@@ -1811,20 +1811,20 @@ const initAnimateCards = () => {
   mm.add(MQ.tabletUp, () => {
     cards.forEach((el) => {
       const ui = el.querySelectorAll('[data-card-ui]')
-      gsap.set(ui, { y: 100 })
+      gsap.set(ui, { y: '6rem' })
       gsap
         .timeline({
-          defaults: { ease: 'hazel-ease' },
+          defaults: { ease: 'power4.out' },
           scrollTrigger: {
             trigger: el,
-            start: 'clamp(top 70%)',
+            start: 'clamp(top 90%)',
             invalidateOnRefresh: true,
           },
         })
         // from: 'center' makes a 2-card row equidistant (no stagger), so fall back to 'start'
         .to(ui, {
-          y: 0,
-          duration: 1.2,
+          y: '0rem',
+          duration: 1.1,
           stagger: { each: 0.1, from: ui.length > 2 ? 'center' : 'start' },
         })
     })
