@@ -57,28 +57,23 @@ function mountHeroReveal(el) {
   };
 
   Promise.all([hero.setImageAsync(imageUrl), hero.setMaskAsync(maskUrl)]).then(() => {
-    // Play the reveal once on load, then hold the settled frame.
+    // Play the reveal once on load, then hold it settled while the flow field keeps
+    // running: reveal progress caps at 1, but raw elapsed drives the perpetual flow
+    // (the core wraps it into a seamless loop). renderAt reads the rect each frame,
+    // so resizes are handled without a separate listener.
     const start = performance.now();
     let raf = 0;
     const frame = () => {
       const elapsed = (performance.now() - start) / 1000;
-      const loopTime = Math.min(elapsed, loopDur);
-      renderAt(loopTime / loopDur, loopTime);
-      raf = elapsed < loopDur ? requestAnimationFrame(frame) : 0;
+      renderAt(Math.min(elapsed / loopDur, 1), elapsed);
+      raf = requestAnimationFrame(frame);
     };
     raf = requestAnimationFrame(frame);
 
-    let resizeTimer = 0;
-    const onResize = () => {
-      window.clearTimeout(resizeTimer);
-      resizeTimer = window.setTimeout(() => renderAt(1, loopDur), 100);
-    };
-    window.addEventListener("resize", onResize);
     window.addEventListener(
       "pagehide",
       () => {
         if (raf) cancelAnimationFrame(raf);
-        window.removeEventListener("resize", onResize);
         hero.dispose();
       },
       { once: true },

@@ -1160,6 +1160,7 @@ const initRevealText2 = () => {
           )
 
           const tl = gsap.timeline({
+            delay: el.closest('[data-hero]') ? 0.3 : 0,
             scrollTrigger: {
               trigger: el,
               start: 'top 100%',
@@ -1943,7 +1944,7 @@ export function initGlobal() {
   // initHighlightText()
   // initRevealText()
   initRevealText2()
-  initWordReveal()
+  //initWordReveal()
   initMarqueeScrollDirection()
 
   initNumbersAnimation()

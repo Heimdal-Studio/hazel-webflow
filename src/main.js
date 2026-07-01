@@ -5,6 +5,7 @@ import { initContact } from './pages/contact.js'
 import { initGlobal } from './global.js'
 import { initNav } from './nav.js'
 import { initHeroReveal } from './hero-reveal/index.js'
+import { initPainterly } from './painterly-reveal/index.js'
 
 ;(() => {
   // =============================================
@@ -30,6 +31,8 @@ import { initHeroReveal } from './hero-reveal/index.js'
   function init() {
     // Hero reveal mounts on any page that has a [data-hero-reveal] embed.
     initHeroReveal()
+    // Painterly brush reveal mounts on any [data-painterly-reveal] section (scroll-triggered).
+    initPainterly()
 
     const page = document.querySelector(CONFIG.selectors.pageWrapper)
     if (!page) return

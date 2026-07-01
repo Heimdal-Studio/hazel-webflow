@@ -10,6 +10,7 @@ export type HeroParams = {
   easing: string;
   softness: number;
   blur: number;
+  revealZoom: number; // extra zoom-in from the top-left over the reveal
   maskStyle: HeroMaskStyle;
   maskStart: number; // seconds into the loop where the mask reveal begins
   maskDuration: number; // seconds the mask reveal takes
@@ -18,6 +19,9 @@ export type HeroParams = {
   waveAmp: number;
   noiseScale: number;
   waveSpeed: number;
+  flowAmp: number; // perpetual background flow-field warp strength
+  flowScale: number; // flow-field spatial scale (lower = bigger folds)
+  flowSpeed: number; // flow-field cycles per loop (0 = frozen)
   grainAmount: number;
   grainScale: number;
   grainAnimate: boolean;
@@ -32,6 +36,7 @@ export const DEFAULT_HERO_PARAMS: HeroParams = {
   easing: "easeOutCubic",
   softness: 0.3,
   blur: 16,
+  revealZoom: 0.18,
   maskStyle: "static",
   maskStart: 2,
   maskDuration: 3,
@@ -40,12 +45,15 @@ export const DEFAULT_HERO_PARAMS: HeroParams = {
   waveAmp: 0.02,
   noiseScale: 2.4,
   waveSpeed: 0.2,
+  flowAmp: 0.05,
+  flowScale: 1.6,
+  flowSpeed: 1,
   grainAmount: 0.03,
   grainScale: 0.5,
   grainAnimate: false,
   vignette: 0,
-  background: "#EDE7DC",
-  includeBg: false,
+  background: "#FFFDFA",
+  includeBg: true,
   loopDurationSeconds: 9,
 };
 
@@ -194,6 +202,10 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     angle: u("uAngle"),
     softness: u("uSoftness"),
     dissolveBlur: u("uDissolveBlur"),
+    zoomAmt: u("uZoomAmt"),
+    flowAmp: u("uFlowAmp"),
+    flowScale: u("uFlowScale"),
+    flowPhase: u("uFlowPhase"),
     waveAmp: u("uWaveAmp"),
     waveScale: u("uWaveScale"),
     wavePhase: u("uWavePhase"),
@@ -233,6 +245,15 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     gl.uniform1f(loc.angle, params.angle);
     gl.uniform1f(loc.softness, params.softness);
     gl.uniform1f(loc.dissolveBlur, params.blur);
+    // Reveal zoom spans the whole reveal window (act 1 bloom + act 2 mask), then holds.
+    const revealEndFrac = Math.min(startFrac + durFrac, 1);
+    const zoomPhase = ease(clamp(loopProgress / revealEndFrac, 0, 1), params.easing);
+    gl.uniform1f(loc.zoomAmt, 1 + params.revealZoom * zoomPhase);
+    gl.uniform1f(loc.flowAmp, params.flowAmp);
+    gl.uniform1f(loc.flowScale, params.flowScale);
+    // Perpetual, seamless flow: phase wraps 0..2PI per loop; loopTime is monotonic in
+    // the Webflow runtime (keeps flowing after the one-shot reveal) and cyclic in the tool.
+    gl.uniform1f(loc.flowPhase, ((loopTime / dur) % 1) * Math.PI * 2 * Math.max(0, params.flowSpeed));
     gl.uniform1f(loc.waveAmp, params.waveAmp);
     gl.uniform1f(loc.waveScale, params.noiseScale);
     gl.uniform1f(loc.wavePhase, params.motion ? loopProgress * Math.PI * 2 * params.waveSpeed : 0);

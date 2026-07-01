@@ -40,6 +40,11 @@ uniform float uMaskMode;       // act 2 style: 0 = fade (gradient), 1 = wipe (ra
 uniform float uAngle;          // reveal direction, degrees (135 = TL->BR)
 uniform float uSoftness;       // width of the soft expanding reveal edge
 uniform float uDissolveBlur;   // blur (px) applied where the image dissolves
+uniform float uZoomAmt;        // final source zoom multiplier (>=1), anchored top-left
+
+uniform float uFlowAmp;        // liquid domain-warp strength (perpetual background flow)
+uniform float uFlowScale;      // flow spatial scale (lower = bigger, silkier folds)
+uniform float uFlowPhase;      // 0..2PI looping flow phase (frozen when speed is 0)
 
 uniform float uWaveAmp;        // edge noise amplitude
 uniform float uWaveScale;      // edge noise spatial scale
@@ -164,12 +169,33 @@ void main() {
 
   float keep = clamp(bloom * maskApplied, 0.0, 1.0);
 
-  // Blur rides the soft act-1 edge and fades out as the razor act-2 settles.
+  // Reveal zoom — scale the source up from the top-left (the first-revealed corner)
+  // over the whole reveal, so the gradient colors bloom outward while it wipes in
+  // (equivalent to CSS transform-origin: top-left). Holds at the settled zoom after.
+  float zoomAmt = uZoomAmt;
+  vec2 tl = vec2(0.0, 1.0); // top-left in this bottom-left-origin uv space
+  vec2 uvZoom = tl + (uv - tl) / zoomAmt;
   vec2 coverUv = (uImageSize.x > 0.0 && uImageSize.y > 0.0)
-    ? getCoverUv(uv, uImageSize, uResolution)
-    : uv;
+    ? getCoverUv(uvZoom, uImageSize, uResolution)
+    : uvZoom;
+
+  // Flow field — perpetual liquid motion. Domain-warp the sample coords with looping
+  // simplex noise (a circular phase => the warp returns to start each loop, so it's
+  // seamless yet never stops). A warp-of-a-warp gives the silky folds of the reference.
+  vec2 fp = vec2(cos(uFlowPhase), sin(uFlowPhase)) * 1.5;
+  vec2 q = vec2(
+    snoise(coverUv * uFlowScale + fp),
+    snoise(coverUv * uFlowScale + fp + vec2(3.1, 1.7))
+  );
+  vec2 warp = vec2(
+    snoise(coverUv * uFlowScale + q + fp + vec2(1.7, 9.2)),
+    snoise(coverUv * uFlowScale + q + fp + vec2(8.3, 2.8))
+  );
+  vec2 flowUv = coverUv + warp * uFlowAmp;
+
+  // Blur rides the soft act-1 edge and fades out as the razor act-2 settles.
   float blurPx = uDissolveBlur * (1.0 - bloom) * (1.0 - uMaskPhase);
-  vec3 image = mix(uBgColor, sampleSource(coverUv, blurPx), uHasImage);
+  vec3 image = mix(uBgColor, sampleSource(flowUv, blurPx), uHasImage);
 
   vec3 composite = mix(uBgColor, image, keep);
   vec3 color = uIncludeBg > 0.5 ? composite : image;
