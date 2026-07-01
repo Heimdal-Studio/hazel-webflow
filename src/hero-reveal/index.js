@@ -52,7 +52,7 @@ function mountHeroReveal(el) {
       height: Math.max(1, Math.round(r.height * dpr)),
       loopProgress,
       loopTime,
-      includeBg: true,
+      includeBg: params.includeBg,
     });
   };
 

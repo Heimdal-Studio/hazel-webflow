@@ -31,6 +31,7 @@ uniform sampler2D uTexture;    // source (revealed) image
 uniform float uHasImage;
 uniform sampler2D uMask;       // dissolve mask (grayscale; white = keep)
 uniform float uHasMask;
+uniform vec2  uMaskSize;       // mask pixels (for width-100% / height-auto fit)
 
 uniform float uProgress;       // act 1: 0..1 soft bloom reveal (from timeline)
 uniform float uMaskPhase;      // act 2: 0..1 mask reveal-in
@@ -133,10 +134,15 @@ void main() {
   float front = uProgress * (1.0 + 2.0 * soft) - soft;
   float bloom = 1.0 - smoothstep(front - soft, front + soft, field);
 
-  // Dissolve mask (white = keep image, black = background). Mapped down the frame:
-  // mask top (white) at the frame top, mask bottom (black) at the frame bottom.
+  // Dissolve mask (white = keep image, black = background), sized width-100% /
+  // height-auto and anchored to the bottom. Above the mask band the sampler clamps
+  // to the mask's top edge (white = keep), so the top of the image is untouched.
+  float maskBandH = (uMaskSize.x > 0.0)
+    ? (uResolution.x * uMaskSize.y) / (uResolution.y * uMaskSize.x)
+    : 1.0;
+  vec2 maskUv = vec2(uv.x, uv.y / max(maskBandH, 1e-4));
   float maskKeep = uHasMask > 0.5
-    ? dot(texture(uMask, uv).rgb, vec3(0.299, 0.587, 0.114))
+    ? dot(texture(uMask, maskUv).rgb, vec3(0.299, 0.587, 0.114))
     : 1.0;
 
   // Act 2 — the mask reveals IN, settling on the ORIGINAL mask dissolve (end state
@@ -145,13 +151,15 @@ void main() {
   //   wipe : a razor-sharp front sweeps from the darkest mask region upward, leaving
   //          the original mask behind it.
   float maskApplied;
-  if (uMaskMode < 0.5) {
-    maskApplied = mix(1.0, maskKeep, uMaskPhase);
+  if (uMaskMode > 1.5) {
+    maskApplied = maskKeep; // static: mask applied, no reveal animation
+  } else if (uMaskMode < 0.5) {
+    maskApplied = mix(1.0, maskKeep, uMaskPhase); // fade
   } else {
     float sharp = max(uMaskEdge, 0.001);
     float sweepLevel = mix(-2.0 * sharp, 1.0 + 2.0 * sharp, uMaskPhase);
     float swept = 1.0 - smoothstep(sweepLevel - sharp, sweepLevel + sharp, maskKeep);
-    maskApplied = mix(1.0, maskKeep, swept);
+    maskApplied = mix(1.0, maskKeep, swept); // wipe
   }
 
   float keep = clamp(bloom * maskApplied, 0.0, 1.0);

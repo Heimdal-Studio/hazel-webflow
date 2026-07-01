@@ -3,7 +3,7 @@
 // object + a timing/size options object, so it has no Toolcraft or React deps.
 import { FRAGMENT_SHADER, VERTEX_SHADER } from "./hero-shader";
 
-export type HeroMaskStyle = "fade" | "wipe";
+export type HeroMaskStyle = "fade" | "wipe" | "static";
 
 export type HeroParams = {
   angle: number;
@@ -23,16 +23,17 @@ export type HeroParams = {
   grainAnimate: boolean;
   vignette: number;
   background: string; // hex
+  includeBg: boolean; // false = transparent background
   loopDurationSeconds: number;
 };
 
 export const DEFAULT_HERO_PARAMS: HeroParams = {
   angle: 135,
-  easing: "easeInOut",
+  easing: "easeOutCubic",
   softness: 0.3,
   blur: 16,
-  maskStyle: "fade",
-  maskStart: 3.5,
+  maskStyle: "static",
+  maskStart: 2,
   maskDuration: 3,
   maskEdge: 0.02,
   motion: true,
@@ -44,6 +45,7 @@ export const DEFAULT_HERO_PARAMS: HeroParams = {
   grainAnimate: false,
   vignette: 0,
   background: "#EDE7DC",
+  includeBg: false,
   loopDurationSeconds: 9,
 };
 
@@ -184,6 +186,7 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     imageSize: u("uImageSize"),
     hasImage: u("uHasImage"),
     hasMask: u("uHasMask"),
+    maskSize: u("uMaskSize"),
     progress: u("uProgress"),
     maskPhase: u("uMaskPhase"),
     maskEdge: u("uMaskEdge"),
@@ -222,10 +225,11 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     gl.uniform2f(loc.imageSize, source.size[0], source.size[1]);
     gl.uniform1f(loc.hasImage, source.size[0] > 0 ? 1 : 0);
     gl.uniform1f(loc.hasMask, mask.size[0] > 0 ? 1 : 0);
+    gl.uniform2f(loc.maskSize, mask.size[0], mask.size[1]);
     gl.uniform1f(loc.progress, ease(Math.min(loopProgress / startFrac, 1), params.easing));
     gl.uniform1f(loc.maskPhase, ease(clamp((loopProgress - startFrac) / durFrac, 0, 1), params.easing));
     gl.uniform1f(loc.maskEdge, params.maskEdge);
-    gl.uniform1f(loc.maskMode, params.maskStyle === "wipe" ? 1 : 0);
+    gl.uniform1f(loc.maskMode, params.maskStyle === "wipe" ? 1 : params.maskStyle === "static" ? 2 : 0);
     gl.uniform1f(loc.angle, params.angle);
     gl.uniform1f(loc.softness, params.softness);
     gl.uniform1f(loc.dissolveBlur, params.blur);
