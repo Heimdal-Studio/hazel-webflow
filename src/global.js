@@ -1831,6 +1831,113 @@ const initAnimateCards = () => {
   })
 }
 
+function initCursor(container) {
+  function initFollower() {
+    container = document.querySelector('body')
+    const follower = document.querySelector('.cursor-item')
+    if (!follower || !container) return
+    let targetX = 0,
+      targetY = 0
+    let currentX = 0,
+      currentY = 0
+    let velocityX = 0,
+      velocityY = 0
+    let lastY = 0
+    let rotation = 0
+    let targetOpacity = 0,
+      currentOpacity = 0
+
+    function lerp(start, end, factor) {
+      return (1 - factor) * start + factor * end
+    }
+
+    const stiffness = 0.1
+    const damping = 0.55
+    const rotationSensitivity = 0.1
+
+    function animate() {
+      const dx = targetX - currentX
+      const dy = targetY - currentY
+
+      // Calculate velocity
+      velocityX += dx * stiffness
+      velocityY += dy * stiffness
+
+      // Apply damping
+      velocityX *= damping
+      velocityY *= damping
+
+      // Update current position
+      currentX += velocityX
+      currentY += velocityY
+
+      const speedY = targetY - lastY
+
+      if (Math.abs(speedY) > 0.2) {
+        rotation = Math.max(Math.min(rotation + speedY * (rotationSensitivity * -1), 90), -90)
+      } else {
+        rotation = lerp(rotation, 0, 0.2)
+      }
+
+      follower.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`
+
+      currentOpacity = lerp(currentOpacity, targetOpacity, 0.15)
+      follower.style.opacity = currentOpacity
+
+      lastY = targetY
+
+      requestAnimationFrame(animate)
+    }
+    animate()
+
+    document.addEventListener('mousemove', (e) => {
+      targetX = e.clientX
+      targetY = e.clientY
+    })
+
+    document.querySelectorAll('[data-cursor]').forEach((element) => {
+      element.addEventListener('mouseenter', function () {
+        const cursorWrapper = document.querySelector('.cursor-item')
+        if (cursorWrapper) {
+          cursorWrapper.style.display = 'flex'
+        }
+        targetOpacity = 1
+        const cursorText = this.getAttribute('data-cursor')
+        if (cursorText) {
+          const cursorTextElement = document.querySelector('[data-cursor-text]')
+          if (cursorTextElement) {
+            cursorTextElement.textContent = cursorText
+          }
+        }
+      })
+
+      element.addEventListener('mouseleave', function () {
+        targetOpacity = 0
+      })
+    })
+  }
+  initFollower()
+}
+
+function initSliderDragInset() {
+  document.querySelectorAll('.slider_wrap').forEach((wrap) => {
+    const items = wrap.querySelectorAll('.slider_item-w')
+    if (!items.length) return
+
+    gsap.set(items, { clipPath: 'inset(0rem round 1rem)' }) // numeric baseline so inset() interpolates
+
+    const press = () =>
+      gsap.to(items, { clipPath: 'inset(.25rem round 1rem)', duration: 0.4, ease: 'power3.out' })
+    const release = () =>
+      gsap.to(items, { clipPath: 'inset(0rem round 1rem)', duration: 0.4, ease: 'power3.out' })
+
+    wrap.addEventListener('pointerdown', press)
+    // release on window: the drag often ends with the pointer off the slider
+    window.addEventListener('pointerup', release)
+    window.addEventListener('pointercancel', release)
+  })
+}
+
 export function initGlobal() {
   initTextAnimations()
   // initHighlightText()
@@ -1854,4 +1961,6 @@ export function initGlobal() {
   initFooterGradient()
 
   initAnimateCards()
+  initCursor()
+  initSliderDragInset()
 }

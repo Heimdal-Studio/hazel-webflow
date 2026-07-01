@@ -2,6 +2,7 @@ import globals from 'globals'
 import eslintConfigPrettier from 'eslint-config-prettier'
 
 export default [
+  { ignores: ['dist/**', 'src/hero-reveal/core/**'] },
   {
     languageOptions: {
       ecmaVersion: 'latest',

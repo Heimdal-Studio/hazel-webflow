@@ -4,6 +4,7 @@ import { initHome } from './pages/home.js'
 import { initContact } from './pages/contact.js'
 import { initGlobal } from './global.js'
 import { initNav } from './nav.js'
+import { initHeroReveal } from './hero-reveal/index.js'
 
 ;(() => {
   // =============================================
@@ -27,6 +28,9 @@ import { initNav } from './nav.js'
   // INIT
   // =============================================
   function init() {
+    // Hero reveal mounts on any page that has a [data-hero-reveal] embed.
+    initHeroReveal()
+
     const page = document.querySelector(CONFIG.selectors.pageWrapper)
     if (!page) return
 
