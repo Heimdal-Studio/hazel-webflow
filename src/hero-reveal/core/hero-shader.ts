@@ -42,9 +42,11 @@ uniform float uSoftness;       // width of the soft expanding reveal edge
 uniform float uDissolveBlur;   // blur (px) applied where the image dissolves
 uniform float uZoomAmt;        // final source zoom multiplier (>=1), anchored top-left
 
-uniform float uFlowAmp;        // liquid domain-warp strength (perpetual background flow)
+uniform float uFlowAmp;        // liquid domain-warp strength (fold cusps)
 uniform float uFlowScale;      // flow spatial scale (lower = bigger, silkier folds)
-uniform float uFlowPhase;      // 0..2PI looping flow phase (frozen when speed is 0)
+uniform float uFlowT;          // 0..1 sawtooth flow-cycle phase (frozen when speed is 0)
+uniform float uWarpT;          // 0..1 sawtooth fold-morph phase (1/3 the flow rate)
+uniform float uFlowDrift;      // advection travel distance (uv units) per flow cycle
 
 uniform float uWaveAmp;        // edge noise amplitude
 uniform float uWaveScale;      // edge noise spatial scale
@@ -97,6 +99,15 @@ vec2 getCoverUv(vec2 uv, vec2 textureSize, vec2 quadSize) {
   );
 }
 // ---------------------------------------------------------------
+
+// Curl of snoise (finite differences): a divergence-free velocity field, so the
+// background advects like incompressible fluid instead of wobbling in place.
+vec2 curlNoise(vec2 p) {
+  float e = 0.1;
+  float dx = snoise(p + vec2(e, 0.0)) - snoise(p - vec2(e, 0.0));
+  float dy = snoise(p + vec2(0.0, e)) - snoise(p - vec2(0.0, e));
+  return vec2(dy, -dx) / (2.0 * e);
+}
 
 // 3x3 box blur of the source, radius in pixels. Used in the dissolve zone so the
 // reveal reads as an expanding blur rather than a hard edge.
@@ -179,10 +190,17 @@ void main() {
     ? getCoverUv(uvZoom, uImageSize, uResolution)
     : uvZoom;
 
-  // Flow field — perpetual liquid motion. Domain-warp the sample coords with looping
-  // simplex noise (a circular phase => the warp returns to start each loop, so it's
-  // seamless yet never stops). A warp-of-a-warp gives the silky folds of the reference.
-  vec2 fp = vec2(cos(uFlowPhase), sin(uFlowPhase)) * 1.5;
+  // Flow field — perpetual liquid flow over a STATIC image. Every pixel rides an
+  // elliptical orbit aligned with a curl-noise flow frame (divergence-free => reads
+  // as incompressible fluid), and the orbit phase travels along noise contours, so
+  // compression/shear waves sweep continuously across the frame. Bounded displacement
+  // (a static JPG can't be advected forever without stretching to mush), but the
+  // traveling phase means motion never reads as back-and-forth wobble. Exactly
+  // periodic per flow cycle and continuous for monotonic time. The warp-of-a-warp
+  // (on its own 3x-slower phase, so the combined period is 3 cycles) folds the
+  // drifting field into the silky cusps of the reference.
+  const float TAU = 6.28318530717958647692;
+  vec2 fp = vec2(cos(uWarpT * TAU), sin(uWarpT * TAU)) * 1.0;
   vec2 q = vec2(
     snoise(coverUv * uFlowScale + fp),
     snoise(coverUv * uFlowScale + fp + vec2(3.1, 1.7))
@@ -191,7 +209,26 @@ void main() {
     snoise(coverUv * uFlowScale + q + fp + vec2(1.7, 9.2)),
     snoise(coverUv * uFlowScale + q + fp + vec2(8.3, 2.8))
   );
-  vec2 flowUv = coverUv + warp * uFlowAmp;
+  // Local flow frame: bigger swirls than the folds, slowly evolving with the morph.
+  // Soft-bounded (not normalized) so direction stays smooth through curl zeros —
+  // normalize() there produces visible pinwheel pinches.
+  vec2 vel = curlNoise(coverUv * uFlowScale * 0.6 + fp * 0.3);
+  vec2 dirF = vel / (1.0 + length(vel));
+  vec2 dirP = vec2(-dirF.y, dirF.x);
+
+  // Orbit: phase travels along the q contours (waves advect through the silk);
+  // radius varies spatially so the flow shears instead of translating rigidly.
+  float ang = TAU * uFlowT + (q.x + q.y) * 2.5;
+  vec2 drift = (cos(ang) * dirF + 0.6 * sin(ang) * dirP)
+             * uFlowDrift * (0.7 + 0.3 * q.y);
+
+  // Fade the total displacement out near the texture borders so large drift never
+  // drags CLAMP_TO_EDGE smears into the frame.
+  vec2 disp = warp * uFlowAmp - drift;
+  disp /= 1.0 + 1.2 * length(disp); // soft-limit extreme excursions
+  vec2 eb = min(coverUv, 1.0 - coverUv);
+  disp *= smoothstep(0.0, 0.22, min(eb.x, eb.y));
+  vec2 flowUv = coverUv + disp;
 
   // Blur rides the soft act-1 edge and fades out as the razor act-2 settles.
   float blurPx = uDissolveBlur * (1.0 - bloom) * (1.0 - uMaskPhase);
