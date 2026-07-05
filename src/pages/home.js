@@ -42,6 +42,7 @@ const initIconCards = () => {
 
 const initRace = () => {
   const el = document.querySelector('.why-now_visual-w')
+  if (!el) return
   const itemsUneven = el.querySelectorAll('.why-now_item.is--uneven')
   const itemsEven = el.querySelectorAll('.why-now_item.is--even')
 

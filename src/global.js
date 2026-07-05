@@ -880,11 +880,12 @@ const initFaqs = () => {
         function close() {
           if (button.ariaExpanded === 'false') return
           button.ariaExpanded = 'false'
-          tl.reverse().invalidate()
+          tl.timeScale(1.7).reverse().invalidate()
         }
 
         function open(instant) {
           button.ariaExpanded = 'true'
+          tl.timeScale(1)
           instant ? tl.progress(1) : tl.play()
         }
 
@@ -1534,7 +1535,7 @@ function initProgressCards() {
 }
 */
 
-function initProgressCards() {
+function initTabs() {
   const wrap = document.querySelector('[data-init-progress]')
   if (!wrap) return
 
@@ -1597,6 +1598,7 @@ function initProgressCards() {
 
   function switchTab(index) {
     if (index === activeIndex) return
+    const isFirst = activeIndex === null
     activeIndex = index // claim immediately so re-clicks compare correctly
     if (currentTl) currentTl.kill() // interrupt any switch already in progress
 
@@ -1670,17 +1672,33 @@ function initProgressCards() {
         incomingVisual,
         { autoAlpha: 0, y: '4rem' },
         { autoAlpha: 1, y: '0rem', duration: 0.8, ease: 'power4.out' },
-        SWITCH_DURATION
+        isFirst ? 0.2 : SWITCH_DURATION // first reveal on scroll-in comes in sooner
       )
     }
   }
 
-  // Start the autoplay loop once the section scrolls into view
+  // Start the autoplay loop once the section scrolls into view; pause the whole
+  // cycle (timer + switch animations) while off-screen so nothing shifts layout
+  // mid-scroll, resume when it comes back.
+  let started = false
   ScrollTrigger.create({
     trigger: '[data-init-progress]',
     start: 'top 50%',
-    once: true,
-    onEnter: () => switchTab(0),
+    end: 'bottom top',
+    onToggle: (self) => {
+      if (self.isActive) {
+        if (!started) {
+          started = true
+          switchTab(0)
+        } else {
+          if (barTween) barTween.resume()
+          if (currentTl) currentTl.resume()
+        }
+      } else if (started) {
+        if (barTween) barTween.pause()
+        if (currentTl) currentTl.pause()
+      }
+    },
   })
 
   // Click a card to jump to it (but let the inner CTA link through)
@@ -1818,7 +1836,7 @@ const initAnimateCards = () => {
           defaults: { ease: 'power4.out' },
           scrollTrigger: {
             trigger: el,
-            start: 'clamp(top 90%)',
+            start: 'clamp(top 85%)',
             invalidateOnRefresh: true,
           },
         })
@@ -1832,110 +1850,190 @@ const initAnimateCards = () => {
   })
 }
 
-function initCursor(container) {
-  function initFollower() {
-    container = document.querySelector('body')
+// Drag cursor follower + press inset on sliders — both tablet-and-up only
+function initCursor() {
+  gsap.matchMedia().add(MQ.tabletUp, () => {
+    const cleanups = []
+
+    // --- cursor follower ---
     const follower = document.querySelector('.cursor-item')
-    if (!follower || !container) return
-    let targetX = 0,
-      targetY = 0
-    let currentX = 0,
-      currentY = 0
-    let velocityX = 0,
-      velocityY = 0
-    let lastY = 0
-    let rotation = 0
-    let targetOpacity = 0,
-      currentOpacity = 0
+    if (follower) {
+      let targetX = 0,
+        targetY = 0
+      let currentX = 0,
+        currentY = 0
+      let velocityX = 0,
+        velocityY = 0
+      let lastY = 0
+      let rotation = 0
+      let targetOpacity = 0,
+        currentOpacity = 0
+      let rafId
 
-    function lerp(start, end, factor) {
-      return (1 - factor) * start + factor * end
-    }
-
-    const stiffness = 0.1
-    const damping = 0.55
-    const rotationSensitivity = 0.1
-
-    function animate() {
-      const dx = targetX - currentX
-      const dy = targetY - currentY
-
-      // Calculate velocity
-      velocityX += dx * stiffness
-      velocityY += dy * stiffness
-
-      // Apply damping
-      velocityX *= damping
-      velocityY *= damping
-
-      // Update current position
-      currentX += velocityX
-      currentY += velocityY
-
-      const speedY = targetY - lastY
-
-      if (Math.abs(speedY) > 0.2) {
-        rotation = Math.max(Math.min(rotation + speedY * (rotationSensitivity * -1), 90), -90)
-      } else {
-        rotation = lerp(rotation, 0, 0.2)
+      function lerp(start, end, factor) {
+        return (1 - factor) * start + factor * end
       }
 
-      follower.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`
+      const stiffness = 0.1
+      const damping = 0.55
+      const rotationSensitivity = 0.1
 
-      currentOpacity = lerp(currentOpacity, targetOpacity, 0.15)
-      follower.style.opacity = currentOpacity
+      function animate() {
+        const dx = targetX - currentX
+        const dy = targetY - currentY
 
-      lastY = targetY
+        velocityX += dx * stiffness
+        velocityY += dy * stiffness
 
-      requestAnimationFrame(animate)
-    }
-    animate()
+        velocityX *= damping
+        velocityY *= damping
 
-    document.addEventListener('mousemove', (e) => {
-      targetX = e.clientX
-      targetY = e.clientY
-    })
+        currentX += velocityX
+        currentY += velocityY
 
-    document.querySelectorAll('[data-cursor]').forEach((element) => {
-      element.addEventListener('mouseenter', function () {
-        const cursorWrapper = document.querySelector('.cursor-item')
-        if (cursorWrapper) {
-          cursorWrapper.style.display = 'flex'
+        const speedY = targetY - lastY
+
+        if (Math.abs(speedY) > 0.2) {
+          rotation = Math.max(Math.min(rotation + speedY * (rotationSensitivity * -1), 90), -90)
+        } else {
+          rotation = lerp(rotation, 0, 0.2)
         }
-        targetOpacity = 1
-        const cursorText = this.getAttribute('data-cursor')
-        if (cursorText) {
+
+        follower.style.transform = `translate(${currentX}px, ${currentY}px) rotate(${rotation}deg)`
+
+        currentOpacity = lerp(currentOpacity, targetOpacity, 0.15)
+        follower.style.opacity = currentOpacity
+
+        lastY = targetY
+
+        rafId = requestAnimationFrame(animate)
+      }
+      animate()
+
+      const onMove = (e) => {
+        targetX = e.clientX
+        targetY = e.clientY
+      }
+      document.addEventListener('mousemove', onMove)
+
+      const enterLeavePairs = []
+      document.querySelectorAll('[data-cursor]').forEach((element) => {
+        const onEnter = () => {
+          follower.style.display = 'flex'
+          targetOpacity = 1
+          const cursorText = element.getAttribute('data-cursor')
           const cursorTextElement = document.querySelector('[data-cursor-text]')
-          if (cursorTextElement) {
+          if (cursorText && cursorTextElement) {
             cursorTextElement.textContent = cursorText
           }
         }
+        const onLeave = () => {
+          targetOpacity = 0
+        }
+        element.addEventListener('mouseenter', onEnter)
+        element.addEventListener('mouseleave', onLeave)
+        enterLeavePairs.push([element, onEnter, onLeave])
       })
 
-      element.addEventListener('mouseleave', function () {
-        targetOpacity = 0
+      cleanups.push(() => {
+        cancelAnimationFrame(rafId)
+        document.removeEventListener('mousemove', onMove)
+        enterLeavePairs.forEach(([el, onEnter, onLeave]) => {
+          el.removeEventListener('mouseenter', onEnter)
+          el.removeEventListener('mouseleave', onLeave)
+        })
+        follower.style.opacity = 0
+      })
+    }
+
+    // --- press inset ---
+    document.querySelectorAll('.slider_wrap').forEach((wrap) => {
+      const items = wrap.querySelectorAll('.slider_item-w')
+      if (!items.length) return
+
+      gsap.set(items, { clipPath: 'inset(0rem round 1rem)' }) // numeric baseline so inset() interpolates
+
+      const press = () =>
+        gsap.to(items, { clipPath: 'inset(.25rem round 1rem)', duration: 0.4, ease: 'power3.out' })
+      const release = () =>
+        gsap.to(items, { clipPath: 'inset(0rem round 1rem)', duration: 0.4, ease: 'power3.out' })
+
+      wrap.addEventListener('pointerdown', press)
+      // release on window: the drag often ends with the pointer off the slider
+      window.addEventListener('pointerup', release)
+      window.addEventListener('pointercancel', release)
+
+      cleanups.push(() => {
+        wrap.removeEventListener('pointerdown', press)
+        window.removeEventListener('pointerup', release)
+        window.removeEventListener('pointercancel', release)
+        gsap.set(items, { clearProps: 'clipPath' })
       })
     })
-  }
-  initFollower()
+
+    return () => cleanups.forEach((fn) => fn())
+  })
 }
 
-function initSliderDragInset() {
-  document.querySelectorAll('.slider_wrap').forEach((wrap) => {
-    const items = wrap.querySelectorAll('.slider_item-w')
-    if (!items.length) return
+function initCompareToggle() {
+  const EASE = 'hazel-ease' // swap here to retune the whole toggle
+  const DURATION = 0.5
+  const SWAP = '1.5rem' // vertical throw of the column swap
 
-    gsap.set(items, { clipPath: 'inset(0rem round 1rem)' }) // numeric baseline so inset() interpolates
+  document.querySelectorAll('.compare_component').forEach((component) => {
+    const buttons = [...component.querySelectorAll('[data-toggle]')]
+    const bg = component.querySelector('.toggle_bg')
+    const items = {
+      after: component.querySelector('.compare_item.is--hazel'),
+      before: component.querySelector('.compare_item.is--before'),
+    }
+    if (buttons.length < 2 || !items.after || !items.before) return
 
-    const press = () =>
-      gsap.to(items, { clipPath: 'inset(.25rem round 1rem)', duration: 0.4, ease: 'power3.out' })
-    const release = () =>
-      gsap.to(items, { clipPath: 'inset(0rem round 1rem)', duration: 0.4, ease: 'power3.out' })
+    gsap.matchMedia().add('(max-width: 480px)', () => {
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      let current = null
 
-    wrap.addEventListener('pointerdown', press)
-    // release on window: the drag often ends with the pointer off the slider
-    window.addEventListener('pointerup', release)
-    window.addEventListener('pointercancel', release)
+      function setStatus(status, animate) {
+        if (status === current || !items[status]) return
+        current = status
+        component.setAttribute('data-compare-status', status)
+
+        const index = buttons.findIndex((b) => b.getAttribute('data-toggle') === status)
+        buttons.forEach((b, i) => b.classList.toggle('is--active', i === index))
+
+        const d = animate && !reduce ? DURATION : 0
+        const incoming = items[status]
+        const outgoing = status === 'after' ? items.before : items.after
+
+        if (bg) gsap.to(bg, { xPercent: index * 100, duration: d, ease: EASE })
+        gsap.to(outgoing, {
+          y: `-${SWAP}`,
+          autoAlpha: 0,
+          pointerEvents: 'none',
+          duration: d,
+          ease: EASE,
+        })
+        gsap.fromTo(
+          incoming,
+          { y: SWAP },
+          { y: 0, autoAlpha: 1, pointerEvents: 'auto', duration: d, ease: EASE }
+        )
+      }
+
+      const onClick = (e) => setStatus(e.currentTarget.getAttribute('data-toggle'), true)
+      buttons.forEach((b) => b.addEventListener('click', onClick))
+
+      setStatus('after', false) // default state on load
+
+      return () => {
+        buttons.forEach((b) => {
+          b.removeEventListener('click', onClick)
+          b.classList.remove('is--active')
+        })
+        component.removeAttribute('data-compare-status')
+        gsap.set([items.after, items.before, bg].filter(Boolean), { clearProps: 'all' })
+      }
+    })
   })
 }
 
@@ -1955,13 +2053,13 @@ export function initGlobal() {
   initFaqs()
 
   initPriceCards()
+  initCompareToggle()
   initHeroParallax()
-  initProgressCards()
+  initTabs()
   initTypewriter()
 
   initFooterGradient()
 
   initAnimateCards()
   initCursor()
-  initSliderDragInset()
 }
