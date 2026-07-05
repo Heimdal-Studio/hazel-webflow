@@ -26,17 +26,17 @@ export type FluidParams = {
 };
 
 export const DEFAULT_FLUID_PARAMS: FluidParams = {
-  fieldScale: 0.6,
+  fieldScale: 0.5,
   fieldWarp: 0.35,
   fieldDrift: 0.1,
   fieldMorph: 0.35,
   fieldSpeed: 1.0,
-  contrast: 0.3,
-  balance: 0,
-  ink: "#C49A4C", // top-left glow (warm gold)
-  color2: "#7C8168", // right glow (cool sage)
-  color3: "#B0601F", // bottom-left glow (warm orange)
-  paper: "#14100A", // dark base behind the glows == export background
+  contrast: 0.38,
+  balance: -0.28,
+  ink: "#7E5F28", // top-left glow (warm gold)
+  color2: "#767A5E", // right glow (cool sage)
+  color3: "#6E3D10", // bottom-left glow (warm orange)
+  paper: "#191307", // dark base behind the glows == export background
   lineStrength: 0, // ponytail: twill off by default; the fluid-bg designs are smooth
   lineSpacing: 5,
   lineAngle: 90,
