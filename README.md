@@ -20,10 +20,16 @@ Paste this in **Project Settings > Custom Code > Before </body>**:
 <script>
   (function () {
     var LOCALHOST_URL = [
-      'http://localhost:4000/@vite/client',
-      'http://localhost:4000/src/main.js',
+      'http://localhost:4012/@vite/client',
+      'http://localhost:4012/src/main.js',
+      'http://localhost:4012/src/gl/embed.js',
     ]
-    var PROD_URL = ['https://MY-PROJECT.vercel.app/main.js']
+    // main.js = site JS; gl.js = standalone WebGL bundle (hero/career/fluid embeds),
+    // loaded as its own parallel script so GL never blocks or bloats main.js.
+    var PROD_URL = [
+      'https://hazel-webflow.vercel.app/main.js',
+      'https://hazel-webflow.vercel.app/gl.js',
+    ]
 
     function createScripts(arr, isDevMode) {
       return arr.map(function (url) {

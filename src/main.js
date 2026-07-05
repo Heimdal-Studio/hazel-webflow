@@ -4,9 +4,6 @@ import { initHome } from './pages/home.js'
 import { initContact } from './pages/contact.js'
 import { initGlobal } from './global.js'
 import { initNav } from './nav.js'
-import { initHeroReveal } from './gl/hero/index.js'
-import { initCareerHero } from './gl/career/index.js'
-import { initFluidBg } from './gl/fluid/index.js'
 import { initPainterly } from './painterly-reveal/index.js'
 
 ;(() => {
@@ -31,10 +28,8 @@ import { initPainterly } from './painterly-reveal/index.js'
   // INIT
   // =============================================
   function init() {
-    // GL effects mount on any page that has their data-attribute embed.
-    initHeroReveal()
-    initCareerHero()
-    initFluidBg()
+    // GL effects (hero reveal, career hero, fluid bg) live in the separate
+    // dist/gl.js bundle (src/gl/embed.js) so they load in parallel — see README.
     // Painterly brush reveal mounts on any [data-painterly-reveal] section (scroll-triggered).
     initPainterly()
 
