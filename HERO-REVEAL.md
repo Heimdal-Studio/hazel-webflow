@@ -1,6 +1,6 @@
 # Hero Reveal — Webflow integration
 
-The hero reveal effect (authored in the sibling `hero-gl/` Toolcraft tool) runs on
+The hero reveal effect (authored in the sibling `hazel-gl/` Toolcraft tool (route `/`)) runs on
 Webflow through this repo's site-wide `main.js` bundle. You tune it in the tool,
 click **Export Code**, and paste one snippet into a Webflow Embed.
 
@@ -8,9 +8,9 @@ click **Export Code**, and paste one snippet into a Webflow Embed.
 
 - `src/hero-reveal/index.js` — the runtime. Auto-mounts every `[data-hero-reveal]`
   on the page, reads its config + image/mask URLs, and renders on load.
-- `src/hero-reveal/core/` — the shared WebGL render core, **synced** from
-  `../hero-gl/src/app` (do not edit here). Re-sync after changing the shader/renderer:
-  `node scripts/sync-hero-core.mjs`, then rebuild + redeploy.
+- `src/gl/hero/` — the shared WebGL render core, **synced** from
+  `../hazel-gl/src/app/hero` (do not edit here). Re-sync after changing the shader/renderer:
+  `node scripts/sync-gl-cores.mjs`, then rebuild + redeploy.
 - `api/blob-upload.js` — Vercel function that stores uploaded gradient/mask images
   in Vercel Blob and returns public URLs (used by the tool's Export).
 
@@ -22,12 +22,12 @@ click **Export Code**, and paste one snippet into a Webflow Embed.
 3. **Deploy**: push to GitHub (Vercel auto-deploys) or `vercel --prod`. This serves
    `main.js` (already wired into Webflow via the dev/prod switcher in `README.md`) and
    the `/api/blob-upload` function.
-4. **Point the tool at the endpoint**: in `../hero-gl/src/app/hero-export.ts`, set
+4. **Point the tool at the endpoint**: in `../hazel-gl/src/app/hero/hero-export.ts`, set
    `BLOB_UPLOAD_URL = "https://<your-dev>.vercel.app/api/blob-upload"`.
 
 ## Using it
 
-1. In the `hero-gl` tool: drop your gradient + mask, tune, click **Export Code**
+1. In the `hazel-gl` tool (Hero route): drop your gradient + mask, tune, click **Export Code**
    (snippet copied to clipboard).
 2. In Webflow: drop an **Embed** element into your hero section and paste. Give the
    embed (or its section) a height — the canvas fills the container.

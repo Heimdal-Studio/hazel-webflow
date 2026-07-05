@@ -4,7 +4,9 @@ import { initHome } from './pages/home.js'
 import { initContact } from './pages/contact.js'
 import { initGlobal } from './global.js'
 import { initNav } from './nav.js'
-import { initHeroReveal } from './hero-reveal/index.js'
+import { initHeroReveal } from './gl/hero/index.js'
+import { initCareerHero } from './gl/career/index.js'
+import { initFluidBg } from './gl/fluid/index.js'
 import { initPainterly } from './painterly-reveal/index.js'
 
 ;(() => {
@@ -29,8 +31,10 @@ import { initPainterly } from './painterly-reveal/index.js'
   // INIT
   // =============================================
   function init() {
-    // Hero reveal mounts on any page that has a [data-hero-reveal] embed.
+    // GL effects mount on any page that has their data-attribute embed.
     initHeroReveal()
+    initCareerHero()
+    initFluidBg()
     // Painterly brush reveal mounts on any [data-painterly-reveal] section (scroll-triggered).
     initPainterly()
 

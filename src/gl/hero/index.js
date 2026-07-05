@@ -5,8 +5,8 @@
 //     <script type="application/json" data-hero-config>{ ...params... }</script>
 //   </div>
 //
-// The render core is synced from ../../../hero-gl (see scripts/sync-hero-core.mjs).
-import { createHeroGL, DEFAULT_HERO_PARAMS } from "./core/hero-gl";
+// The render core is synced from ../../../hazel-gl (see scripts/sync-gl-cores.mjs).
+import { createHeroGL, DEFAULT_HERO_PARAMS } from "./hero-gl";
 
 function readConfig(el) {
   const node = el.querySelector('script[type="application/json"][data-hero-config]');
