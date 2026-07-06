@@ -35,10 +35,6 @@ uniform vec3  uInk;           // top-left glow color
 uniform vec3  uColor2;        // right glow color
 uniform vec3  uColor3;        // bottom-left glow color
 uniform vec3  uPaper;         // dark base color == background
-uniform float uLineStrength;  // 0 = no line screen, 1 = full twill overlay
-uniform float uLinePeriodPx;  // line period in backing pixels (pre-scaled in JS)
-uniform float uLineAngle;     // degrees
-uniform float uLineRough;     // hand-printed irregularity: phase jitter + local strength variation
 uniform float uGrainAmount;
 uniform float uGrainScale;
 uniform float uGrainPhase;
@@ -98,26 +94,7 @@ void main() {
   float ramp = max(uToneRamp, 0.02);
   float base = smoothstep(-ramp, ramp, f + uToneBalance);
 
-  // 2. Optional line screen — static twill (l = 0.5 is a no-op at Strength 0).
-  // Roughness jitters the line phase and varies the local strength so the
-  // screen stops reading as a perfect mechanical sine.
-  float a = radians(uLineAngle);
-  float d = cos(a) * gl_FragCoord.x + sin(a) * gl_FragCoord.y;
-  float period = max(uLinePeriodPx, 1.0);
-  float jitter = snoise(gl_FragCoord.xy * (0.7 / period));
-  float jitterLow = snoise(gl_FragCoord.xy * (0.12 / period));
-  d += (jitter * 0.4 + jitterLow * 0.6) * uLineRough * period * 0.85;
-  float variation = 0.5 + 0.5 * snoise(p * 3.0 + vec2(7.3, 2.6));
-  float wave = sin(d * TAU / period);
-  float widthNoise = 0.5 + 0.5 * snoise(p * 1.8 + fp * 0.3 + vec2(3.3, 8.1));
-  float lineWeight = mix(0.5, widthNoise, uLineRough);
-  float sineLine = 0.5 + 0.5 * wave;
-  float etching = smoothstep(-lineWeight * 0.6, lineWeight * 0.6, wave);
-  float line = mix(sineLine, etching, uLineRough * uLineRough);
-  float strengthLocal = uLineStrength * (1.0 - uLineRough * 0.6 * (1.0 - variation));
-  float l = mix(0.5, line, strengthLocal);
-
-  // 3. Grain — additive snoise speckle (phase 0 = static).
+  // 2. Grain — additive snoise speckle (phase 0 = static).
   float grain = snoise(gl_FragCoord.xy * uGrainScale + uGrainPhase);
 
   // 4. Glow field: a dark base (uPaper) lit by three soft colored glows at fixed
@@ -135,7 +112,6 @@ void main() {
   color = mix(color, uInk, clamp(gTL, 0.0, 1.0));
   color = mix(color, uColor2, clamp(gR, 0.0, 1.0));
   color = mix(color, uColor3, clamp(gBL, 0.0, 1.0));
-  color *= 2.0 * l; // optional twill; l = 0.5 (neutral x1) when Line Strength = 0
   color = clamp(color + grain * uGrainAmount, 0.0, 1.0);
   float glowCover = clamp(gTL + gR + gBL, 0.0, 1.0);
   float alpha = uIncludeBg > 0.5 ? 1.0 : glowCover;

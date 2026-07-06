@@ -7,17 +7,13 @@ export type FluidParams = {
   fieldWarp: number; // how much the flow warps the glow positions
   fieldDrift: number; // noise-space orbit radius per loop (travel)
   fieldMorph: number; // fold-evolution amount per loop (fluidity)
-  fieldSpeed: number; // multiplier on drift+morph; grain/lines unaffected
+  fieldSpeed: number; // multiplier on drift+morph; grain unaffected
   contrast: number; // 0..1 slider; mapped to the smoothstep ramp width
   balance: number; // shifts glow intensity dark (-) / bright (+)
   ink: string; // hex, top-left glow
   color2: string; // hex, right glow
   color3: string; // hex, bottom-left glow
   paper: string; // hex, dark base == background color
-  lineStrength: number; // 0..1 twill overlay (0 = off)
-  lineSpacing: number; // line period in canvas px (resolution-independent)
-  lineAngle: number; // degrees
-  lineRoughness: number; // 0..1 phase jitter + local strength variation
   grainAmount: number;
   grainScale: number;
   grainAnimate: boolean;
@@ -37,10 +33,6 @@ export const DEFAULT_FLUID_PARAMS: FluidParams = {
   color2: "#767A5E", // right glow (cool sage)
   color3: "#6E3D10", // bottom-left glow (warm orange)
   paper: "#191307", // dark base behind the glows == export background
-  lineStrength: 0, // ponytail: twill off by default; the fluid-bg designs are smooth
-  lineSpacing: 5,
-  lineAngle: 90,
-  lineRoughness: 0.09,
   grainAmount: 0.01,
   grainScale: 1.0,
   grainAnimate: true,
@@ -51,7 +43,6 @@ export const DEFAULT_FLUID_PARAMS: FluidParams = {
 export type FluidRenderOptions = {
   width: number; // backing pixels
   height: number;
-  canvasWidth: number; // state.canvas.size.width, keeps line density stable
   loopProgress: number; // 0..1 position in the loop
   loopTime: number; // seconds into the loop (grain stepping)
   includeBg: boolean;
@@ -124,10 +115,6 @@ export function createFluidGL(canvas: HTMLCanvasElement): FluidGL | null {
     color2: u("uColor2"),
     color3: u("uColor3"),
     paper: u("uPaper"),
-    lineStrength: u("uLineStrength"),
-    linePeriodPx: u("uLinePeriodPx"),
-    lineAngle: u("uLineAngle"),
-    lineRough: u("uLineRough"),
     grainAmount: u("uGrainAmount"),
     grainScale: u("uGrainScale"),
     grainPhase: u("uGrainPhase"),
@@ -138,7 +125,7 @@ export function createFluidGL(canvas: HTMLCanvasElement): FluidGL | null {
 
   const render = (
     params: FluidParams,
-    { width, height, canvasWidth, loopProgress, loopTime, includeBg }: FluidRenderOptions,
+    { width, height, loopProgress, loopTime, includeBg }: FluidRenderOptions,
   ) => {
     if (canvas.width !== width || canvas.height !== height) {
       canvas.width = width;
@@ -165,12 +152,6 @@ export function createFluidGL(canvas: HTMLCanvasElement): FluidGL | null {
     gl.uniform3f(loc.color2, color2[0], color2[1], color2[2]);
     gl.uniform3f(loc.color3, color3[0], color3[1], color3[2]);
     gl.uniform3f(loc.paper, paper[0], paper[1], paper[2]);
-    gl.uniform1f(loc.lineStrength, params.lineStrength);
-    // Line spacing is authored in canvas px; scale to backing px so render scale
-    // and 2K/4K/8K exports keep the same visual line density.
-    gl.uniform1f(loc.linePeriodPx, Math.max(1, params.lineSpacing * (width / Math.max(canvasWidth, 1))));
-    gl.uniform1f(loc.lineAngle, params.lineAngle);
-    gl.uniform1f(loc.lineRough, params.lineRoughness);
     gl.uniform1f(loc.grainAmount, params.grainAmount);
     gl.uniform1f(loc.grainScale, params.grainScale);
     // Grain steps at 12fps; each step is uncorrelated noise, so the loop wrap

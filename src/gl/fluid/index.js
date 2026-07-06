@@ -2,7 +2,7 @@
 // site-wide), it auto-mounts every [data-fluid-bg] container:
 //
 //   <div data-fluid-bg>
-//     <script type="application/json" data-fluid-config>{ ...params, loopDurationSeconds, canvasWidth }</script>
+//     <script type="application/json" data-fluid-config>{ ...params, loopDurationSeconds }</script>
 //   </div>
 //
 // The render core is synced from ../../../hazel-gl (see scripts/sync-gl-cores.mjs).
@@ -23,7 +23,7 @@ function mountFluidBg(el) {
   if (el.dataset.fluidMounted) return;
   el.dataset.fluidMounted = "1";
 
-  const { loopDurationSeconds, canvasWidth, ...params } = readConfig(el);
+  const { loopDurationSeconds, ...params } = readConfig(el);
 
   if (getComputedStyle(el).position === "static") el.style.position = "relative";
   if (el.clientHeight < 2 && !el.style.height && !el.style.aspectRatio) {
@@ -40,8 +40,6 @@ function mountFluidBg(el) {
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const loopDur = loopDurationSeconds || 10;
-  // Line density is authored in tool-canvas pixels; keep the tuned reference width.
-  const designWidth = canvasWidth || 1920;
 
   // Perpetual seamless loop; the rect is read each frame, so resizes are
   // handled without a separate listener.
@@ -54,7 +52,6 @@ function mountFluidBg(el) {
     fluid.render(params, {
       width: Math.max(1, Math.round(r.width * dpr)),
       height: Math.max(1, Math.round(r.height * dpr)),
-      canvasWidth: designWidth,
       loopProgress: t,
       loopTime: elapsed % loopDur,
       includeBg: true,
