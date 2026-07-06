@@ -3,7 +3,7 @@ function initScrollBehavior() {
   if (!nav) return
 
   const offsetY = 60
-  const scrollThreshold = offsetY + 950
+  const scrollThreshold = offsetY + 1200
   let oldScroll = 0
 
   function update() {
@@ -201,7 +201,7 @@ function initMegaNavDirectionalHover() {
           autoAlpha: 1,
           y: 0,
           duration: DUR.contentIn,
-          stagger: .02,
+          stagger: 0.02,
           ease: 'power1.out',
         },
         0
@@ -699,7 +699,15 @@ function initNavDropdown() {
   const setExpanded = (t, open) => t.setAttribute('aria-expanded', open ? 'true' : 'false')
   const setPanelState = (p, open) => p && p.setAttribute('data-panel-state', open ? 'active' : '')
 
-  const DUR = { enter: 0.4, exit: 0.25, fade: 0.3, fadeOut: 0.2, stagger: 0.05, icon: 0.3, accordion: 0.4 }
+  const DUR = {
+    enter: 0.4,
+    exit: 0.25,
+    fade: 0.3,
+    fadeOut: 0.2,
+    stagger: 0.05,
+    icon: 0.3,
+    accordion: 0.4,
+  }
   const HOVER_ENTER = 120
   const HOVER_LEAVE = 150
 
@@ -793,7 +801,8 @@ function initNavDropdown() {
         gsap.killTweensOf(panel)
         gsap.killTweensOf(fades)
         if (backdrop) gsap.killTweensOf(backdrop)
-        if (icon) gsap.to(icon, { rotation: 0, duration: immediate ? 0 : d(DUR.icon), ease: 'power2.in' })
+        if (icon)
+          gsap.to(icon, { rotation: 0, duration: immediate ? 0 : d(DUR.icon), ease: 'power2.in' })
 
         if (isOpen(toggle)) openToggle = null
         setExpanded(toggle, false)
@@ -815,10 +824,12 @@ function initNavDropdown() {
         }
 
         const tl = gsap.timeline({ onComplete: finish })
-        if (fades.length) tl.to(fades, { autoAlpha: 0, duration: DUR.fadeOut, ease: 'power2.in' }, 0)
+        if (fades.length)
+          tl.to(fades, { autoAlpha: 0, duration: DUR.fadeOut, ease: 'power2.in' }, 0)
         if (isDesktop) {
           tl.to(panel, { autoAlpha: 0, y: -4, duration: DUR.exit, ease: 'power2.in' }, 0)
-          if (backdrop) tl.to(backdrop, { autoAlpha: 0, duration: DUR.fadeOut, ease: 'power2.out' }, 0)
+          if (backdrop)
+            tl.to(backdrop, { autoAlpha: 0, duration: DUR.fadeOut, ease: 'power2.out' }, 0)
         } else tl.to(panel, { height: 0, duration: DUR.exit, ease: 'power2.inOut' }, 0.05)
       }
 
@@ -908,7 +919,7 @@ function initNavDropdown() {
         })
         on(backdrop, 'click', () => openToggle && closePanel(openToggle))
 
-      // ── MOBILE ───────────────────────────────────────────────────────
+        // ── MOBILE ───────────────────────────────────────────────────────
       } else {
         let menuOpen = false
 
@@ -942,7 +953,13 @@ function initNavDropdown() {
             tl.fromTo(
               items,
               { autoAlpha: 0, y: 12 },
-              { autoAlpha: 1, y: 0, duration: d(0.3), stagger: reduce ? 0 : 0.04, ease: 'power3.out' },
+              {
+                autoAlpha: 1,
+                y: 0,
+                duration: d(0.3),
+                stagger: reduce ? 0 : 0.04,
+                ease: 'power3.out',
+              },
               0.15
             )
           }
@@ -955,7 +972,8 @@ function initNavDropdown() {
           burger.setAttribute('aria-expanded', 'false')
           const tl = gsap.timeline({ onComplete: () => (document.body.style.overflow = '') })
           tl.add(animateBurger(false), 0)
-          if (backdrop) tl.to(backdrop, { autoAlpha: 0, duration: d(0.3), ease: 'power2.out' }, 0.05)
+          if (backdrop)
+            tl.to(backdrop, { autoAlpha: 0, duration: d(0.3), ease: 'power2.out' }, 0.05)
           tl.to(navList, { autoAlpha: 0, duration: d(0.3), ease: 'power2.inOut' }, 0.05)
         }
 
