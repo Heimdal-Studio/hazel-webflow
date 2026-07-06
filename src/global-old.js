@@ -483,6 +483,48 @@ function initMarqueeScrollDirection(container = document) {
   })
 }
 
+/*
+function initButton() {
+  const buttons = document.querySelectorAll('[data-button]')
+  if (buttons.length === 0) return
+
+  buttons.forEach((element) => {
+    const textElement = element.querySelector('[data-button-text]')
+    const widthHover = Number(element.getAttribute('data-button-width-hover')) || 0
+    const heightHover = Number(element.getAttribute('data-button-height-hover')) || 0
+    if (!textElement) return
+
+    const setScale = (x, y) => {
+      element.style.setProperty('--button-scale-x', x)
+      element.style.setProperty('--button-scale-y', y)
+    }
+
+    const updateScale = () => {
+      const currentWidth = element.offsetWidth
+      const currentHeight = element.offsetHeight
+      const scaleX = (currentWidth + widthHover) / currentWidth
+      const scaleY = (currentHeight + heightHover) / currentHeight
+      setScale(scaleX, scaleY)
+    }
+
+    updateScale()
+    const text = textElement.textContent
+    textElement.innerHTML = ''
+    ;[...text].forEach((char, index) => {
+      const span = document.createElement('span')
+      span.textContent = char
+      span.style.setProperty('--index', index)
+
+      if (char === ' ') {
+        span.style.whiteSpace = 'pre'
+      }
+
+      textElement.appendChild(span)
+    })
+  })
+}
+*/
+
 function initButton(container = document) {
   const offsetIncrement = 0.01
   const isTabletOrBelow = window.matchMedia('(max-width: 991px)').matches
@@ -1017,7 +1059,90 @@ function initPriceCards(next = document) {
   }
 }
 
-const initTitleAnimation = () => {
+const initHighlightText = () => {
+  document.querySelectorAll('[data-highlight-text]').forEach((el) => {
+    const scrollStart = el.getAttribute('data-highlight-scroll-start') || 'top 100%'
+    const scrollEnd = el.getAttribute('data-highlight-scroll-end') || 'center 40%'
+    const fadeOpacity = parseFloat(el.getAttribute('data-highlight-fade')) || 0.2
+    const charStagger = parseFloat(el.getAttribute('data-highlight-stagger')) || 0.1
+    const lineStagger = parseFloat(el.getAttribute('data-highlight-line-stagger')) || 0.3
+
+    new SplitText(el, {
+      type: 'lines, words, chars',
+      autoSplit: true,
+      onSplit(split) {
+        return gsap.context(() => {
+          const charsByLine = split.lines.map((line) =>
+            split.chars.filter((char) => line.contains(char))
+          )
+
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: el,
+              start: scrollStart,
+              end: scrollEnd,
+              scrub: true,
+            },
+          })
+
+          charsByLine.forEach((chars, lineIndex) => {
+            tl.from(
+              chars,
+              { autoAlpha: fadeOpacity, stagger: charStagger, ease: 'linear' },
+              lineIndex * lineStagger
+            )
+          })
+        })
+      },
+    })
+  })
+}
+
+const initRevealText = () => {
+  document.querySelectorAll('[data-highlight-text]').forEach((el) => {
+    new SplitText(el, {
+      type: 'lines, words, chars',
+      autoSplit: true,
+      onSplit(split) {
+        return gsap.context(() => {
+          const wordsByLine = split.lines.map((line) =>
+            split.words.filter((word) => line.contains(word))
+          )
+
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 90%',
+              toggleActions: 'play none none none',
+            },
+          })
+
+          const originalColor = getComputedStyle(el).color
+
+          wordsByLine.forEach((words, lineIndex) => {
+            const mid = (words.length - 1) / 2
+
+            words.forEach((word, i) => {
+              const dist = mid > 0 ? Math.abs(i - mid) / mid : 0
+              const staggerDelay = Math.abs(i - mid) * 0.02
+              const baseTime = lineIndex * 0.03
+
+              gsap.set(word, { autoAlpha: 0, color: '#E07A5F', y: 50 + dist * 20 })
+              tl.to(word, { autoAlpha: 1, duration: 0.2, ease: 'none' }, baseTime + staggerDelay)
+              tl.to(
+                word,
+                { color: originalColor, y: 0, ease: 'power3.out', duration: 1 },
+                baseTime + staggerDelay
+              )
+            })
+          })
+        })
+      },
+    })
+  })
+}
+
+const initRevealText2 = () => {
   document.querySelectorAll('[data-highlight-text]').forEach((el) => {
     new SplitText(el, {
       type: 'lines, words, chars',
@@ -1080,6 +1205,64 @@ const initTitleAnimation = () => {
   })
 }
 
+const initWordReveal = () => {
+  const elements = document.querySelectorAll('[data-word-reveal]')
+  if (!elements.length) return
+
+  let buffEase = 'expo.out'
+  if (typeof CustomEase !== 'undefined') {
+    gsap.registerPlugin(CustomEase)
+    buffEase = CustomEase.create('buff', 'M0,0 C0,0.837 0.2,0.999 1,1')
+  }
+
+  elements.forEach((el) => {
+    new SplitText(el, {
+      type: 'lines, words',
+      autoSplit: true,
+      // Break hyphenated compounds ("AI-driven") so the hyphen animates as its
+      // own word: "AI", "-", "driven". Pad the hyphen with spaces so GSAP's
+      // whitespace word-splitting picks it up; the padding is stripped in
+      // onSplit so it renders tight.
+      prepareText: (text) => text.replace(/-/g, ' - '),
+      onSplit(split) {
+        // Drop the padding whitespace around hyphen words so there's no visible
+        // gap around the dash ("AI-driven", not "AI - driven").
+        split.words.forEach((word) => {
+          if (word.textContent.trim() === '-') {
+            ;[word.previousSibling, word.nextSibling].forEach((sib) => {
+              if (sib && sib.nodeType === 3 && !sib.textContent.trim()) sib.remove()
+            })
+          }
+        })
+
+        return gsap.context(() => {
+          gsap.set(split.words, { y: 15, autoAlpha: 0 })
+
+          const tl = gsap.timeline({
+            scrollTrigger: {
+              trigger: el,
+              start: 'top 90%',
+              toggleActions: 'play none none none',
+            },
+          })
+
+          // Left-to-right cascade with an uneven gap between words so it feels
+          // organic rather than metronomic — some pop quickly, some lag. Gaps
+          // average ~0.1, the cadence that felt smooth.
+          let t = 0
+          const offsets = split.words.map((word, i) => {
+            if (i > 0) t += gsap.utils.random(0.05, 0.16)
+            return t
+          })
+
+          tl.to(split.words, { autoAlpha: 1, duration: 0.001, stagger: (i) => offsets[i] }, 0)
+          tl.to(split.words, { y: 0, duration: 0.5, ease: buffEase, stagger: (i) => offsets[i] }, 0)
+        })
+      },
+    })
+  })
+}
+
 const initHeroParallax = () => {
   const tl = gsap.timeline({
     scrollTrigger: {
@@ -1091,6 +1274,266 @@ const initHeroParallax = () => {
 
   tl.fromTo('[data-hero-bg]', { y: '0vh' }, { y: '30vh' })
 }
+
+/* Version with scroll - scrub
+function initProgressCards() {
+  const wrap = document.querySelector(".progress-container");
+  if (!wrap) return;
+
+  const isMobile = window.matchMedia('(max-width: 767px)').matches;
+
+  const progressItems = [...wrap.querySelectorAll(".progress_item")];
+  const visualItems = [...wrap.querySelectorAll(".progress-visual_item")];
+  const progressBars = [...wrap.querySelectorAll(".progress_line-active")];
+  const textList = wrap.querySelector(".progress_list");
+
+  const count = progressItems.length;
+  if (!count) return;
+
+  const PHASE_DURATION = 1.5;
+  const FADE_DURATION = 0.25;
+  const TEXT_SLIDE = 1;
+  const GAP = textList ? parseFloat(getComputedStyle(textList).rowGap) || 0 : 0;
+
+  const itemHeights = progressItems.map(el => el.getBoundingClientRect().height);
+
+  visualItems.slice(1).forEach(v => gsap.set(v, { autoAlpha: 0 }));
+  if (isMobile) progressItems.slice(1).forEach(el => gsap.set(el, { autoAlpha: 0 }));
+
+  function setActive(index) {
+    progressItems.forEach((el, i) => el.classList.toggle("is--active", i === index));
+  }
+
+  const tl = gsap.timeline({
+    scrollTrigger: {
+      trigger: ".progress-inner",
+      start: "top 50%",
+      endTrigger: wrap,
+      end: "bottom 80%",
+      scrub: true,
+      onUpdate(self) {
+        setActive(Math.min(Math.floor(self.progress * count), count - 1));
+      }
+    }
+  });
+
+  progressItems.forEach((_, i) => {
+    const t = PHASE_DURATION * i;
+
+    if (progressBars[i]) {
+      tl.fromTo(progressBars[i],
+        { height: "0%" },
+        { height: "100%", duration: PHASE_DURATION, ease: "none" },
+        t
+      );
+    }
+
+    if (i > 0) {
+      let yOffset = 0;
+      for (let j = 0; j < i; j++) yOffset += itemHeights[j] + GAP;
+
+      if (!isMobile && textList) {
+        tl.to(textList, {
+          y: `${yOffset * -1}px`,
+          duration: TEXT_SLIDE,
+          ease: "power2.inOut"
+        }, t);
+      }
+
+      if (isMobile) {
+        tl
+          .to(progressItems[i - 1], { autoAlpha: 0, y: "-2rem", duration: FADE_DURATION, ease: "power2.out" }, t)
+          .fromTo(progressItems[i], { autoAlpha: 0, y: "2rem" }, { autoAlpha: 1, y: "0rem", duration: FADE_DURATION, ease: "power2.out" }, t + FADE_DURATION);
+      }
+
+      if (visualItems[i]) {
+        tl
+          .to(visualItems[i - 1], { autoAlpha: 0, y: '2rem', duration: FADE_DURATION, ease: "power2.in" }, t)
+          .fromTo(visualItems[i], { autoAlpha: 0, y:'2rem' }, { autoAlpha: 1, y: '0rem', duration: FADE_DURATION, ease: "power2.out" }, t + FADE_DURATION);
+      }
+    }
+  });
+
+  return tl;
+}
+*/
+
+/*
+function initProgressCards() {
+  const wrap = document.querySelector(".progress-container");
+  if (!wrap) return;
+
+  const progressItems = [...wrap.querySelectorAll(".progress_item")];
+  const visualItems = [...wrap.querySelectorAll(".progress-visual_item")];
+
+  const barHeightInitial = '4px'
+
+  const count = progressItems.length;
+  if (!count) return;
+
+  // One easing for every structural switch tween, matching the CSS --progress-ease
+  let progressEase = "power2.inOut";
+  if (typeof CustomEase !== "undefined") {
+    gsap.registerPlugin(CustomEase);
+    progressEase = CustomEase.create("progress", "M0,0 C0.6323,-0.0085 0.2618,0.999 1,1");
+  }
+
+  const AUTOPLAY_DURATION = 7;        // seconds the progress bar takes to fill
+  const SWITCH_DURATION = 0.8;        // expand / collapse (matches --progress-duration)
+  const CONTENT_FADE = 1;             // content reveal in
+  const CONTENT_OUT = 0.25;           // content fade out
+  const REVEAL_STAGGER = 0.03;
+
+  // Per-item element refs
+  const tabs = progressItems.map(item => ({
+    item,
+    line: item.querySelector(".progress_line"),
+    bar: item.querySelector(".progress_line-active"),
+    expand: item.querySelector(".progress_expand-w"),
+    reveal: [...item.querySelectorAll(".progress_expand > *")],
+  }));
+
+  // Capture the inactive line position + dimmed item opacity straight from the CSS,
+  // so GSAP animates to/from whatever Webflow already set (read before any is--active).
+  const rawTop = tabs[0].line ? getComputedStyle(tabs[0].line).top : "0px";
+  const inactiveLineTop = rawTop === "auto" ? "0px" : rawTop;
+  const inactiveOpacity = getComputedStyle(progressItems[0]).opacity;
+
+  let activeIndex = null;
+  let isAnimating = false;
+  let barTween = null;
+
+  // Measure each item's full (expanded) height -> the active line-height target.
+  // scrollHeight on the collapsed (height:0, overflow:hidden) expand gives the content
+  // height without any layout toggle.
+  let lineHeights = [];
+  function measureLineHeights() {
+    lineHeights = tabs.map((tab, i) => {
+      if (i === activeIndex) return tab.item.getBoundingClientRect().height; // already open
+      const collapsed = tab.item.getBoundingClientRect().height;             // expand at 0
+      const content = tab.expand ? tab.expand.scrollHeight : 0;
+      return collapsed + content;
+    });
+  }
+
+  // Collapsed starting state
+  tabs.forEach(tab => {
+    if (tab.expand) gsap.set(tab.expand, { display: "block", height: 0 });
+    if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: "1rem" });
+    if (tab.bar) gsap.set(tab.bar, { height: barHeightInitial });
+    if (tab.line) gsap.set(tab.line, { height: barHeightInitial, top: inactiveLineTop });
+  });
+  visualItems.forEach(v => gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: 0 }));
+
+  measureLineHeights();
+
+  // Fill the active item's progress bar, then advance to the next tab
+  function startProgressBar(index, target) {
+    if (barTween) barTween.kill();
+    const bar = tabs[index].bar;
+    if (!bar) return;
+    gsap.set(bar, { height: barHeightInitial });
+    barTween = gsap.to(bar, {
+      height: target,
+      duration: AUTOPLAY_DURATION,
+      ease: "none",
+      onComplete: () => switchTab((index + 1) % count),
+    });
+  }
+
+  function switchTab(index) {
+    if (isAnimating || index === activeIndex) return;
+    isAnimating = true;
+    if (barTween) barTween.kill();
+
+    const incoming = tabs[index];
+    const outgoing = activeIndex != null ? tabs[activeIndex] : null;
+    const incomingVisualItem = visualItems[index];
+    const incomingVisual = incomingVisualItem.querySelector('.progress-visual_visual-w')
+    const outgoingVisualItem = activeIndex != null ? visualItems[activeIndex] : null;
+    const outgoingVisual = outgoingVisualItem?.querySelector('.progress-visual_visual-w')
+
+    progressItems.forEach((el, i) => el.classList.toggle("is--active", i === index));
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        activeIndex = index;
+        isAnimating = false;
+        startProgressBar(index);
+      },
+    });
+
+    // Expand/collapse, line track and item opacity all run together (same start,
+    // duration, ease) so the list reflows in one smooth motion (no jump).
+    if (outgoing) {
+      if (outgoing.expand) tl.to(outgoing.expand, { height: 0, duration: SWITCH_DURATION, ease: progressEase }, 0);
+      if (outgoing.line) tl.to(outgoing.line, { height: barHeightInitial, top: inactiveLineTop, duration: SWITCH_DURATION, ease: progressEase }, 0);
+      tl.to(outgoing.item, { opacity: inactiveOpacity, duration: SWITCH_DURATION, ease: progressEase }, 0);
+    }
+    if (incoming.expand) {
+      tl.fromTo(incoming.expand,
+        { height: 0 },
+        { height: "auto", duration: SWITCH_DURATION, ease: progressEase }, 0);
+    }
+    if (incoming.line) {
+      tl.to(incoming.line, { height: lineHeights[index], top: 0, duration: SWITCH_DURATION, ease: progressEase }, 0);
+    }
+    tl.to(incoming.item, { opacity: 1, duration: SWITCH_DURATION, ease: progressEase }, 0);
+
+    // Outgoing content / bar / visual fade out immediately
+    if (outgoing) {
+      if (outgoing.reveal.length) tl.to(outgoing.reveal, { autoAlpha: 0, y: "-1rem", duration: CONTENT_OUT, ease: "power2.in" }, 0);
+      if (outgoing.bar) tl.to(outgoing.bar, { height: barHeightInitial, duration: 0.3, ease: "power4.out" }, 0);
+      if (outgoingVisual) tl.to(outgoingVisual, { autoAlpha: 0, y: "2rem", duration: 0.5, ease: "power2.in" }, 0);
+    }
+
+    // Incoming content reveals
+    if (incoming.reveal.length) {
+      tl.fromTo(incoming.reveal,
+        { autoAlpha: 0, y: "4rem" },
+        { autoAlpha: 1, y: "0rem", duration: CONTENT_FADE, ease: "power4.out", stagger: REVEAL_STAGGER },
+        0.2
+      );
+    }
+    // Incoming visual reveals
+    if (incomingVisual) {
+      tl.fromTo(incomingVisual,
+        { autoAlpha: 0, y: "4rem" },
+        { autoAlpha: 1, y: "0rem", duration: 0.8, ease: "power4.out" },
+        SWITCH_DURATION
+      );
+    }
+  }
+
+  // Start the autoplay loop once the section scrolls into view
+  ScrollTrigger.create({
+    trigger: ".progress-inner",
+    start: "top 50%",
+    once: true,
+    onEnter: () => switchTab(0),
+  });
+
+  // Re-measure on resize and snap the active line to the new height
+  let resizeTimer;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      measureLineHeights();
+      if (activeIndex != null && tabs[activeIndex].line) {
+        gsap.set(tabs[activeIndex].line, { height: lineHeights[activeIndex], top: 0 });
+      }
+    }, 150);
+  });
+
+  // Click a card to jump to it (but let the inner CTA link through)
+  progressItems.forEach((item, i) => {
+    item.addEventListener("click", (e) => {
+      if (e.target.closest(".button-w")) return;
+      switchTab(i);
+    });
+  });
+}
+*/
 
 function initTabs() {
   const wrap = document.querySelector('[data-init-progress]')
@@ -1225,17 +1668,12 @@ function initTabs() {
       )
     }
     if (incomingVisual) {
-      if (isFirst) {
-        // First reveal on scroll-in: visual is already in its end state, no animation
-        gsap.set(incomingVisual, { autoAlpha: 1, y: '0rem' })
-      } else {
-        tl.fromTo(
-          incomingVisual,
-          { autoAlpha: 0, y: '4rem' },
-          { autoAlpha: 1, y: '0rem', duration: 0.8, ease: 'power4.out' },
-          SWITCH_DURATION
-        )
-      }
+      tl.fromTo(
+        incomingVisual,
+        { autoAlpha: 0, y: '4rem' },
+        { autoAlpha: 1, y: '0rem', duration: 0.8, ease: 'power4.out' },
+        isFirst ? 0.2 : SWITCH_DURATION // first reveal on scroll-in comes in sooner
+      )
     }
   }
 
@@ -1398,7 +1836,7 @@ const initAnimateCards = () => {
           defaults: { ease: 'power4.out' },
           scrollTrigger: {
             trigger: el,
-            start: 'clamp(top 100%)',
+            start: 'clamp(top 85%)',
             invalidateOnRefresh: true,
           },
         })
@@ -1599,29 +2037,12 @@ function initCompareToggle() {
   })
 }
 
-const initNotificationBanner = () => {
-  const KEY = 'nav-banner-dismissed'
-  const ONE_DAY = 24 * 60 * 60 * 1000
-  const wrap = document.querySelector('.nav-banner_wrap')
-  const btn = document.querySelector('.nav-banner_close-btn')
-  if (!wrap || !btn) return
-  const stored = localStorage.getItem(KEY)
-  if (stored && Date.now() - Number(stored) < ONE_DAY) {
-    wrap.remove()
-    return
-  }
-  btn.addEventListener('click', function () {
-    wrap.classList.add('is--closing')
-    localStorage.setItem(KEY, Date.now().toString())
-    setTimeout(function () {
-      wrap.remove()
-    }, 500)
-  })
-}
-
 export function initGlobal() {
   initTextAnimations()
-  initTitleAnimation()
+  // initHighlightText()
+  // initRevealText()
+  initRevealText2()
+  //initWordReveal()
   initMarqueeScrollDirection()
 
   initNumbersAnimation()
@@ -1641,6 +2062,4 @@ export function initGlobal() {
 
   initAnimateCards()
   initCursor()
-
-  initNotificationBanner()
 }
