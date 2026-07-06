@@ -1129,8 +1129,10 @@ function initTabs() {
     if (tab.line) gsap.set(tab.line, { height: barHeightInitial })
     if (tab.cap) gsap.set(tab.cap, { top: 0, y: parseFloat(barHeightInitial) })
   })
-  visualItems.forEach((v) =>
-    gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: 0 })
+  // Hide all visuals except the first — it's visible from load so there's no
+  // late pop-in when the ScrollTrigger fires
+  visualItems.forEach((v, i) =>
+    gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: i === 0 ? 1 : 0 })
   )
 
   let activeIndex = null
@@ -1225,10 +1227,8 @@ function initTabs() {
       )
     }
     if (incomingVisual) {
-      if (isFirst) {
-        // First reveal on scroll-in: visual is already in its end state, no animation
-        gsap.set(incomingVisual, { autoAlpha: 1, y: '0rem' })
-      } else {
+      // First switch to tab 0: its visual is already visible from load, nothing to animate
+      if (!(isFirst && index === 0)) {
         tl.fromTo(
           incomingVisual,
           { autoAlpha: 0, y: '4rem' },
