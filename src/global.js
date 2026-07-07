@@ -1776,11 +1776,10 @@ const initHeroIntro = () => {
   const buttons = hero.querySelectorAll('.button-group .button-w')
   const image = hero.querySelector('.hero_img')
 
-  // Animate only the pieces that exist, so interior heroes (no screenshot/buttons) still work.
   const pieces = [eyebrowWrap, title, paragraph, ...buttons, image].filter(Boolean)
   if (!pieces.length) return
 
-  // Reduced motion: no intro — just reveal the content the head CSS is holding hidden.
+  // Reduced motion: skip the intro.
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     gsap.set(pieces, { autoAlpha: 1 })
     return
@@ -1788,17 +1787,17 @@ const initHeroIntro = () => {
 
   // Tunable timing (seconds from sequence start). Eyebrow plays last.
   const T = {
-    title: 0.5, // char fill — leads now that the eyebrow moved to the end
+    title: 0.5,
     para: 0.8,
     paraDur: 0.6,
     buttons: 1.0,
     buttonsDur: 0.5,
     buttonStagger: 0.08,
-    image: 1.0,
+    image: 0.6,
     imageDur: 2,
-    eyebrow: 1.35, // eyebrow animates in LAST: wrap fade...
+    eyebrow: 1.35,
     eyebrowDur: 1,
-    type: 1.35, // ...then the typewriter types
+    type: 1.35,
   }
 
   const build = () => {
@@ -1850,8 +1849,7 @@ const initHeroIntro = () => {
     tl.play()
   }
 
-  // Start on fonts ready (correct SplitText) + hero background image decoded (sync to the
-  // GL reveal). Safety timeout so a slow/failed image never leaves the hero stuck hidden.
+  // Start once fonts + bg image are ready (or the timeout, whichever first).
   const heroMedia = document.querySelector('[data-hero-reveal]')?.getAttribute('data-hero-media')
   const decoded = heroMedia
     ? Object.assign(new Image(), { src: heroMedia })
