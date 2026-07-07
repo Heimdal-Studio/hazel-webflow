@@ -21,3 +21,7 @@ Webflow loads both via the smart loader in Project Settings → Custom Code → 
 - After editing shaders/cores in hazel-gl: `node scripts/sync-gl-cores.mjs && npm run build`, then deploy.
 
 Docs: `README.md` (loader snippet), `HERO-REVEAL.md` (hero embed flow), `PAINTERLY-REVEAL.md` (CSS-only reveal). `src/shaders/heroShader.js` is an older THREE.js ambient-wave effect (separate from the GL trio; three.js comes from the Webflow head CDN).
+
+## Tracking (RudderStack / PostHog / UTM handoff)
+
+Site-wide head code, not this repo's JS bundle — lives directly in Webflow's Project Settings → Custom Code, not in `src/`. `docs/tracking/utm-trial-link-tracking.md` covers the UTM-capture-and-trial-link-handoff script (must load *before* the RudderStack snippet — loading after silently kills RudderStack init entirely, see the incident section) plus session notes on which parts of the marketing team's dev spec (`docs/tracking/hazel-webflow-developer-spec.html`) hold up against the live site vs. don't. `APP_DOMAIN` for the login route is `hazel.altruist.com` (no `auth.` prefix — that's the separate Auth0 tenant domain).

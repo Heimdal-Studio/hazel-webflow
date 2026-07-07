@@ -1,0 +1,520 @@
+<title>Hazel — Webflow Developer Spec</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --surface: #ffffff; --surface-2: #eef0f8;
+    --ink: #1b1e2b; --muted: #656a80; --line: #d7dae8;
+    --accent: #5667ff; --accent-soft: #eef0ff; --accent-ink: #3644c9;
+    --todo: #a86a1f; --todo-soft: #faf1e2; --todo-line: #e3c48f;
+    --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif;
+  }
+  :root[data-theme="dark"] {
+    --bg: #10121a; --surface: #171a25; --surface-2: #1e2230;
+    --ink: #e7e9f4; --muted: #9297b0; --line: #2b2f42;
+    --accent: #7c8bff; --accent-soft: rgba(124,139,255,0.14); --accent-ink: #aab3ff;
+    --todo: #d9a355; --todo-soft: #2b2418; --todo-line: #4a3b23;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #10121a; --surface: #171a25; --surface-2: #1e2230;
+      --ink: #e7e9f4; --muted: #9297b0; --line: #2b2f42;
+      --accent: #7c8bff; --accent-soft: rgba(124,139,255,0.14); --accent-ink: #aab3ff;
+      --todo: #d9a355; --todo-soft: #2b2418; --todo-line: #4a3b23;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; }
+  .page { max-width: 1040px; margin: 0 auto; padding: 44px 24px 96px; }
+  .eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); margin: 0 0 10px; }
+  h1 { font-size: 27px; font-weight: 650; margin: 0 0 8px; text-wrap: balance; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); font-size: 14.5px; max-width: 72ch; margin: 0 0 4px; }
+  h2 { font-size: 18px; font-weight: 640; margin: 40px 0 12px; padding-top: 20px; border-top: 1px solid var(--line); }
+  h2:first-of-type { border-top: none; padding-top: 0; margin-top: 30px; }
+  h3 { font-size: 14.5px; font-weight: 640; margin: 20px 0 8px; }
+  p { font-size: 14px; }
+  code { font-family: var(--mono); font-size: 12.5px; background: var(--surface-2); color: var(--accent-ink); padding: 1px 6px; border-radius: 5px; }
+  .scopebar { display: flex; gap: 10px; flex-wrap: wrap; margin: 22px 0 6px; }
+  .pill { font-family: var(--mono); font-size: 11.5px; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
+  .pill.in { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); color: var(--accent-ink); background: var(--accent-soft); }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin: 14px 0 24px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; background: var(--surface); }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.event { font-family: var(--mono); font-size: 12px; color: var(--accent-ink); white-space: nowrap; }
+  .prio { font-family: var(--mono); font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 5px; }
+  .prio.p0 { background: var(--accent-soft); color: var(--accent-ink); }
+  .prio.p1 { background: var(--surface-2); color: var(--muted); }
+  .prio.p2 { background: var(--surface-2); color: var(--muted); opacity: .7; }
+  .callout { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 14px 0; font-size: 13.5px; }
+  .callout.todo { background: var(--todo-soft); border-color: var(--todo-line); }
+  .callout.todo b.tag-label { color: var(--todo); font-family: var(--mono); font-size: 11.5px; letter-spacing: .02em; }
+  pre { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; margin: 10px 0 20px; }
+  ul.plain, ol.plain { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; margin: 8px 0; }
+  @media (max-width: 640px) { table { font-size: 12px; } }
+</style>
+
+<div class="page">
+  <p class="eyebrow">Hazel · Webflow Developer Spec</p>
+  <h1>hazel-2026.webflow.io event tracking build</h1>
+  <p class="sub">RudderStack and posthog-js both load directly on the site. RudderStack owns the named business events below. Posthog-js owns pageviews, attribution, feature flags, session replay, and rage-click detection. GTM stays as it is today for GA4, Amplitude, and HubSpot's tracking script.</p>
+
+  <div class="scopebar">
+    <span class="pill in">✓ In scope: RudderStack, posthog-js, and GTM install. Event catalog. Trial signup link.</span>
+    <span class="pill">✗ Out of scope: destination config, GTM/GA4/PostHog project settings, backend /api/auth/login, Stripe webhook.</span>
+  </div>
+
+  <h2>1. RudderStack install</h2>
+  <p>Add the RudderStack snippet to Webflow's site-wide head code, under Project Settings, Custom Code. Load it before GTM. Don't delay it. The write key is <code>3G75ViZLH2YcjKGg5jXe4epRase</code>. The data plane is <code>https://altruistpimzze.dataplane.rudderstack.com</code>. Both are confirmed already.</p>
+  <div class="callout">
+    <p style="margin:0;"><b class="tag-label">USE THE MINIFIED VERSION.</b> It works the same as the unminified one. It's just what's meant to ship on a live page. Paste it as given. Don't edit its body.</p>
+  </div>
+  <div class="callout todo">
+    <p style="margin:0 0 6px;"><b class="tag-label">SDK v3.2.0 breaking change.</b> This snippet only defines <code>rudderanalytics.page</code> as a callable stub. It never calls <code>.load()</code>'s companion <code>.page()</code> the way older versions did. Not an issue here though, since posthog-js owns pageviews (see §2).</p>
+  </div>
+  <pre>&lt;script type="text/javascript"&gt;
+  !function(){"use strict";window.RudderSnippetVersion="3.2.0";var e="rudderanalytics";window[e]||(window[e]=[])
+  ;var rudderanalytics=window[e];if(Array.isArray(rudderanalytics)){
+  if(true===rudderanalytics.snippetExecuted&amp;&amp;window.console&amp;&amp;console.error){
+  console.error("RudderStack JavaScript SDK snippet included more than once.")}else{rudderanalytics.snippetExecuted=true,
+  window.rudderAnalyticsBuildType="legacy";var sdkBaseUrl="https://cdn.rudderlabs.com";var sdkVersion="v3"
+  ;var sdkFileName="rsa.min.js";var scriptLoadingMode="async"
+  ;var r=["setDefaultInstanceKey","load","ready","page","track","identify","alias","group","reset","setAnonymousId","startSession","endSession","consent","addCustomIntegration"]
+  ;for(var n=0;n&lt;r.length;n++){var t=r[n];rudderanalytics[t]=function(r){return function(){var n
+  ;Array.isArray(window[e])?rudderanalytics.push([r].concat(Array.prototype.slice.call(arguments))):null===(n=window[e][r])||void 0===n||n.apply(window[e],arguments)
+  }}(t)}try{
+  new Function('class Test{field=()=&gt;{};test({prop=[]}={}){return prop?(prop?.property??[...prop]):import("");}}'),
+  window.rudderAnalyticsBuildType="modern"}catch(i){}var d=document.head||document.getElementsByTagName("head")[0]
+  ;var o=document.body||document.getElementsByTagName("body")[0];window.rudderAnalyticsAddScript=function(e,r,n){
+  var t=document.createElement("script");t.src=e,t.setAttribute("data-loader","RS_JS_SDK"),r&amp;&amp;n&amp;&amp;t.setAttribute(r,n),
+  "async"===scriptLoadingMode?t.async=true:"defer"===scriptLoadingMode&amp;&amp;(t.defer=true),
+  d?d.insertBefore(t,d.firstChild):o.insertBefore(t,o.firstChild)},window.rudderAnalyticsMount=function(){!function(){
+  if("undefined"==typeof globalThis){var e;var r=function getGlobal(){
+  return"undefined"!=typeof self?self:"undefined"!=typeof window?window:null}();r&amp;&amp;Object.defineProperty(r,"globalThis",{
+  value:r,configurable:true})}
+  }(),window.rudderAnalyticsAddScript("".concat(sdkBaseUrl,"/").concat(sdkVersion,"/").concat(window.rudderAnalyticsBuildType,"/").concat(sdkFileName),"data-rsa-write-key","3G75ViZLH2YcjKGg5jXe4epRase")
+  },
+  "undefined"==typeof Promise||"undefined"==typeof globalThis?window.rudderAnalyticsAddScript("https://polyfill-fastly.io/v3/polyfill.min.js?version=3.111.0&amp;features=Symbol%2CPromise&amp;callback=rudderAnalyticsMount"):window.rudderAnalyticsMount()
+  ;var loadOptions={};rudderanalytics.load("3G75ViZLH2YcjKGg5jXe4epRase","https://altruistpimzze.dataplane.rudderstack.com",loadOptions)}}}();
+&lt;/script&gt;</pre>
+
+  <h2>2. posthog-js install</h2>
+  <p>Install this separately from RudderStack, as its own script. Don't load it through RudderStack's Device Mode integration. Device Mode doesn't fully support feature flags, and flags matter here. RudderStack's own PostHog destination should run in Cloud Mode instead, on RudderStack's side, which isn't this developer's task.</p>
+  <div class="callout todo">
+    <p style="margin:0 0 6px;"><b class="tag-label">TWO SETTINGS BELOW ARE REQUIRED, NOT OPTIONAL.</b></p>
+    <p style="margin:0;"><code>bootstrap.distinctID</code> must be RudderStack's <code>anonymousId</code>. Skip it and the two SDKs generate separate identities that never join up. <code>person_profiles: 'always'</code> matters too, not <code>'identified_only'</code> the way the app sets it. Under <code>'identified_only'</code>, anonymous events carry no person data at all, so attribution gets thrown away before anyone signs up.</p>
+  </div>
+  <pre>&lt;script&gt;
+  // rudderanalytics.ready() is required. The snippet queues calls until the
+  // real SDK finishes loading. getAnonymousId() returns a value rather than
+  // just queuing a call, so calling it too early returns undefined.
+  rudderanalytics.ready(function () {
+    posthog.init('&lt;PROJECT_API_KEY&gt;', {
+      api_host: '&lt;POSTHOG_HOST&gt;',
+      bootstrap: { distinctID: rudderanalytics.getAnonymousId() },
+      person_profiles: 'always',
+      autocapture: false  // RudderStack's named events already cover clicks with
+                           // clearer labels than generic autocapture gives. See
+                           // §7 for the tradeoff this creates.
+      // capture_pageview defaults to true. Posthog-js owns pageviews and attribution.
+    });
+  });
+&lt;/script&gt;</pre>
+  <div class="callout todo">
+    <p style="margin:0;"><b>CONFIRM:</b> the project API key and host. Also confirm dead-click and rage-click collection are turned on in PostHog's project settings.</p>
+  </div>
+
+  <h2>3. GTM install</h2>
+  <ul class="plain">
+    <li><b>Head code slot:</b> RudderStack's snippet first, then GTM's head snippet.</li>
+    <li><b>Footer code slot:</b> GTM's noscript fallback. Webflow has no true top-of-body slot, so this is the standard placement.</li>
+  </ul>
+  <div class="callout todo">
+    <p style="margin:0;"><b>CONFIRM:</b> reuse the existing container <code>GTM-547NZTLM</code>, live on hazel.ai, or start fresh. That's the GTM owner's call.</p>
+  </div>
+
+  <h2>4. Carrying UTMs across pages and into the app</h2>
+  <p>PostHog doesn't need this part. Its own persistence already keeps <code>$initial_utm_source</code> and the rest attached to the anonymous ID across every page on this site, and <code>alias()</code> carries that into the identified person automatically. That part really is free.</p>
+  <p>Postgres is the reason this still needs custom code, confirmed directly against the app's repo, pulled fresh rather than from a stale checkout. The login route, <code>/api/auth/[auth0]/route.ts</code>, reads 14 fields straight off its own incoming query string, all 6 UTM fields plus 8 ad-platform click identifiers: <code>fbclid</code>, <code>gclid</code>, <code>gbraid</code>, <code>wbraid</code>, <code>li_fat_id</code>, <code>ttclid</code>, <code>msclkid</code>, <code>rdt_cid</code>. A second piece, <code>useUTMTracking.ts</code>, posts those same 14 fields to <code>/users/api/utm-tracking/</code>, which saves them to a <code>utm_parameters</code> field on the user record in Postgres, structured as <code>first_touch</code> (write-once, frozen forever), <code>current</code> (updated every time, except <code>utm_referrer</code> which stays frozen inside it too), and a capped <code>history</code> list. That same endpoint also mirrors the data to PostHog as person properties on the backend. None of this reads from PostHog on the way in, though. It reads only from the URL of the request that hits <code>/api/auth/login</code>, and if a visitor browses three pages before clicking trial, that URL has nothing left on it unless something puts the values back. Match the app's own field names exactly, since these are the literal keys it already expects.</p>
+  <pre>const ALWAYS_UPDATE = ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","fbclid","gclid","gbraid","wbraid","li_fat_id","ttclid","msclkid","rdt_cid"];
+const FIRST_TOUCH_ONLY = ["utm_referrer"];
+
+function setCookie(name, value, days) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${days*24*60*60}; path=/`;
+}
+
+const found = new URLSearchParams(window.location.search);
+
+ALWAYS_UPDATE.forEach(function (key) {
+  if (found.has(key)) setCookie(key, found.get(key), 30);
+});
+
+FIRST_TOUCH_ONLY.forEach(function (key) {
+  const alreadySet = document.cookie.includes(key + "=");
+  if (found.has(key) && !alreadySet) setCookie(key, found.get(key), 365);
+});</pre>
+
+  <h2>5. Trial signup link</h2>
+  <p>This reads the cookies from §4 and attaches them, plus one identity value, to the trial button's link right before the visitor clicks it. It's a link decorator that runs at click time.</p>
+  <p>Today, every "Start 14 day trial" button links straight to <code>https://auth.hazel.altruist.com/</code>, a different root domain from the marketing site. No cookie survives that jump on its own, and the app's own UTM-reading code, which only lives in <code>/api/auth/login</code>, never gets a chance to run. Two steps fix this.</p>
+  <ol class="plain" style="list-style: decimal; padding-left: 22px;">
+    <li><b>In the Designer, no code:</b> give every "Start 14 day trial" button the shared class <code>w-cta-trial</code>. Give each pricing card wrapper a <code>data-plan</code> attribute: <code>financial_planning_agent</code>, <code>admin_ai</code>, <code>tax_planning_agent</code>, <code>bundle_all</code>, or <code>enterprise</code>.</li>
+    <li><b>In custom code:</b> one click listener, built at click time rather than baked into the page on load.</li>
+  </ol>
+  <pre>document.addEventListener("click", function (e) {
+  const trigger = e.target.closest(".w-cta-trial");
+  if (!trigger) return;
+  e.preventDefault();
+
+  const url = new URL("https://APP_DOMAIN/api/auth/login");  // NOT auth.hazel.altruist.com — confirm below
+  url.searchParams.set("returnTo", "/");
+  url.searchParams.set("rs_aid", rudderanalytics.getAnonymousId());  // the identity bridge, for PostHog's side
+
+  const planCard = trigger.closest("[data-plan]");
+  if (planCard) url.searchParams.set("intended_plan", planCard.dataset.plan);  // product intent, not attribution
+
+  const TRACKING_KEYS = ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","utm_referrer","fbclid","gclid","gbraid","wbraid","li_fat_id","ttclid","msclkid","rdt_cid"];
+  TRACKING_KEYS.forEach(function (key) {
+    const match = document.cookie.match(new RegExp(key + "=([^;]+)"));
+    if (match) url.searchParams.set(key, decodeURIComponent(match[1]));
+  });
+
+  window.location.assign(url.toString());
+});</pre>
+  <div class="callout todo">
+    <p style="margin:0 0 6px;"><b>CONFIRM BEFORE BUILDING:</b> the app's real login route hostname, from <code>altruist-assistant-frontend</code>, not <code>auth.hazel.altruist.com</code>. Also unconfirmed: whether Auth0's own redirect from its root to <code>/u/login</code> keeps these query params.</p>
+    <p style="margin:0;"><b>Not this developer's work:</b> <code>intended_plan</code> needs a home on the app side once it arrives, either pre-filling onboarding's plan step or saving it as a firm-level attribute. Flag this to whoever owns that flow.</p>
+  </div>
+
+  <h2>6. Event catalog</h2>
+  <p>Six buckets of interactive elements on this site, each needing its own tracking approach. Read this as direction, not a spec to match selector for selector. Verified classes below are confirmed real in the Designer right now. Suggested classes are names for new classes that don't exist yet, proposed here so every event has a consistent way to be found. Build to the pattern, and use your own judgment on the exact class name if the site's real structure asks for something different.</p>
+  <ul class="plain">
+    <li><b>Global navigation.</b> Logo, menu items, nav CTAs. Verified real classes already group these, <code>nav-bar_link</code> and <code>nav_panel-link</code>. Add a <code>data-track-item</code> attribute, nothing more.</li>
+    <li><b>In-page CTAs.</b> Any button or link inside page content that isn't the nav bar. No shared class exists yet. Suggested: <code>w-cta-track</code>.</li>
+    <li><b>Repeating card or tile modules.</b> Bento grids, feature cards, anything that repeats the same shape with different content. No shared class exists yet. Suggested: <code>w-card-track</code>.</li>
+    <li><b>Tabbed content.</b> The homepage's capability tabs are the one confirmed example. No shared class exists yet. Suggested: <code>w-tab-track</code>.</li>
+    <li><b>Carousels and sliders.</b> The testimonials section, built on Swiper.js, is the one confirmed example. Its own classes already exist, verified in the Designer.</li>
+    <li><b>Forms.</b> The demo request form, built on HubSpot. Its own event model, covered on its own further down.</li>
+  </ul>
+
+  <h3>Global navigation</h3>
+  <p>Verified element by element in the live Webflow Designer. The nav's CTA buttons, "Start free trial," "Sign in," and "Book a demo," all link to <code>/request-a-demo</code>. None of them go to Auth0. The §5 handoff applies only to the pricing page's plan-specific trial buttons, which are separate, page-specific elements.</p>
+  <div class="tablewrap">
+    <table>
+      <tr><th>Event</th><th>Trigger</th><th>Properties</th><th>Priority</th></tr>
+      <tr>
+        <td class="event">nav_item_clicked</td>
+        <td>Click on any persistent nav element, desktop or mobile</td>
+        <td>
+          <code>nav_item</code>: logo | products_tax_planning | products_financial_planning | products_admin_ai | security | pricing | sign_in | free_trial | book_demo<br/>
+          <code>nav_variant</code>: desktop | mobile<br/>
+          <code>page_path</code><br/>
+          <code>destination_url</code>
+        </td>
+        <td><span class="prio p0">P0</span></td>
+      </tr>
+      <tr>
+        <td class="event">mobile_nav_toggled</td>
+        <td>Click on the hamburger button, or the backdrop while the menu is open</td>
+        <td>
+          <code>action</code>: opened | closed<br/>
+          <code>trigger</code>: burger_button | backdrop<br/>
+          <code>page_path</code>
+        </td>
+        <td><span class="prio p1">P1</span></td>
+      </tr>
+    </table>
+  </div>
+  <p>One button toggles the menu open and closed. It flips a <code>data-menu-open</code> attribute. A backdrop also closes the menu when clicked from outside it.</p>
+  <pre>const navEl = document.querySelector("[data-menu-wrap]");
+
+document.querySelector("[data-burger-toggle]").addEventListener("click", function () {
+  const wasOpen = navEl.getAttribute("data-menu-open") === "true";
+  rudderanalytics.track("mobile_nav_toggled", {
+    action: wasOpen ? "closed" : "opened",
+    trigger: "burger_button",
+    page_path: window.location.pathname
+  });
+});
+
+document.querySelector("[data-menu-backdrop]").addEventListener("click", function () {
+  rudderanalytics.track("mobile_nav_toggled", {
+    action: "closed",
+    trigger: "backdrop",
+    page_path: window.location.pathname
+  });
+});</pre>
+  <div class="callout todo">
+    <p style="margin:0;"><b>Known site bugs, unrelated to tracking:</b> the "Admin AI" nav link is a dead anchor. The Products dropdown's three sub-links, the logo, and now all four capability tabs on the homepage show an unset link in the Designer. That's four separate places with the identical issue, not one isolated miss, and worth a full link audit before launch rather than fixing each one as it's noticed. Instrument <code>products_admin_ai</code> and <code>tab_switched</code> anyway, so demand becomes measurable once they're fixed.</p>
+  </div>
+
+  <h3>Elements to tag</h3>
+  <p>No new class is needed. Every nav link already shares <code>nav-bar_link</code> or <code>nav_panel-link</code>. The only new work is one <code>data-track-item</code> attribute per element below. Every future nav change needs this same step repeated for the new element. Nothing catches a missed one. It just tracks as null, silently.</p>
+  <div class="tablewrap">
+    <table>
+      <tr><th>Element</th><th>Confirmed text or class</th><th><code>data-track-item</code> value</th></tr>
+      <tr><td>Logo</td><td>class <code>nav-bar_logo</code></td><td><code>logo</code></td></tr>
+      <tr><td>Products dropdown toggle</td><td><code>data-dropdown-toggle="products"</code>, already self-identifying</td><td>n/a</td></tr>
+      <tr><td>Tax Planning Agent link</td><td>class <code>nav_panel-link</code></td><td><code>products_tax_planning</code></td></tr>
+      <tr><td>Financial Planning Agent link</td><td>class <code>nav_panel-link</code></td><td><code>products_financial_planning</code></td></tr>
+      <tr><td>Admin AI link</td><td>class <code>nav_panel-link</code>, dead link today</td><td><code>products_admin_ai</code></td></tr>
+      <tr><td>Security link</td><td>plain <code>nav-bar_link</code></td><td><code>security</code></td></tr>
+      <tr><td>Pricing link</td><td>plain <code>nav-bar_link</code></td><td><code>pricing</code></td></tr>
+      <tr><td>"Start free trial" button</td><td>confirmed text, links to /request-a-demo</td><td><code>free_trial</code></td></tr>
+      <tr><td>"Sign in" button</td><td>confirmed text, links to /request-a-demo</td><td><code>sign_in</code></td></tr>
+      <tr><td>"Book a demo" button, desktop and mobile instance</td><td>confirmed text, links to /request-a-demo</td><td><code>book_demo</code> on both</td></tr>
+    </table>
+  </div>
+
+  <h3>In-page CTAs, cards, testimonials, and pricing</h3>
+  <p>Every in-page interaction carries three properties that stay independent of each other. <code>module_name</code> stays stable even when the copy changes, and shows which section performs. <code>cta_label</code> or <code>card_label</code> reads the visible text at click time, and shows which wording performs. <code>page_path</code> shows which page, and the event type itself, <code>cta_clicked</code> versus <code>nav_item_clicked</code>, tells you whether the click came from the nav or the page body.</p>
+  <div class="tablewrap">
+    <table>
+      <tr><th>Event</th><th>Page</th><th>Trigger</th><th>Properties</th><th>Priority</th></tr>
+      <tr>
+        <td class="event">cta_clicked</td>
+        <td>Homepage hero, Security page, other in-page CTAs</td>
+        <td>Click on a CTA in page content, not the nav bar</td>
+        <td><code>cta_label</code>, <code>cta_destination</code>, <code>module_name</code>, <code>page_path</code></td>
+        <td><span class="prio p1">P1</span></td>
+      </tr>
+      <tr>
+        <td class="event">module_card_clicked</td>
+        <td>Any repeating card or tile module</td>
+        <td>Click on a card, or a link inside one. Use one listener per module, and read <code>card_label</code> from the card's own heading rather than hardcoding names.</td>
+        <td><code>module_name</code>, <code>card_label</code>, <code>link_destination</code> (null if the card is display-only), <code>page_path</code></td>
+        <td><span class="prio p1">P1</span></td>
+      </tr>
+      <tr>
+        <td class="event">testimonial_carousel_interacted</td>
+        <td>Arrow click or drag on the testimonials carousel</td>
+        <td><code>interaction_type</code>: arrow_click | drag, <code>direction</code>: next | prev, <code>page_path</code></td>
+        <td><span class="prio p2">P2</span></td>
+      </tr>
+      <tr>
+        <td class="event">tab_switched</td>
+        <td>Homepage "capability tabs" section (the "Section / Tabs" component, 4 tabs: two "Admin AI," one "Client intelligence," one "Financial planning")</td>
+        <td>Click a tab button. Read <code>tab_label</code> from the button's own text, don't hardcode the 4 labels, since they'll change.</td>
+        <td><code>module_name</code>, <code>tab_label</code>, <code>page_path</code></td>
+        <td><span class="prio p1">P1</span></td>
+      </tr>
+      <tr>
+        <td class="event">page_not_found</td>
+        <td>404 page</td>
+        <td>Anyone who lands on it. Confirmed as its own page in the Designer, worth measuring directly given how many broken links this site already has.</td>
+        <td><code>attempted_path</code> (from <code>document.referrer</code> or the URL itself), <code>referrer</code></td>
+        <td><span class="prio p1">P1</span></td>
+      </tr>
+      <tr>
+        <td class="event">pricing_plan_cta_clicked</td>
+        <td>/pricing</td>
+        <td>Click "Start 14 day trial" on a plan card, or the Enterprise callout's CTA</td>
+        <td><code>plan</code>: financial_planning_agent | admin_ai | tax_planning_agent | bundle_all | enterprise<br/><code>billing_period</code>: monthly | annually | null<br/><code>page_path</code></td>
+        <td><span class="prio p0">P0</span></td>
+      </tr>
+      <tr>
+        <td class="event">trial_signup_started</td>
+        <td>Any page with a trial CTA</td>
+        <td>Click on a trial link. Fires right before navigating to the login URL built in §5.</td>
+        <td><code>plan</code> if known, <code>module_name</code>, <code>page_path</code></td>
+        <td><span class="prio p0">P0</span></td>
+      </tr>
+      <tr>
+        <td class="event">demo_request_submitted</td>
+        <td>/request-a-demo</td>
+        <td>HubSpot form succeeds</td>
+        <td><code>firm_size</code>, <code>has_requirements_text</code> (boolean)</td>
+        <td><span class="prio p0">P0</span></td>
+      </tr>
+      <tr>
+        <td class="event">demo_request_failed</td>
+        <td>/request-a-demo</td>
+        <td>Error state shown. Exact trigger to be confirmed, see §7.</td>
+        <td><code>error_message</code></td>
+        <td><span class="prio p1">P1</span></td>
+      </tr>
+    </table>
+  </div>
+  <div class="callout todo">
+    <p style="margin:0;"><b>The pricing page isn't built yet.</b> Expect four columns, Financial Planning Agent, Admin AI, Tax Planning Agent, and a bundle of all three, plus a separate Enterprise callout that isn't a fifth column, plus a monthly and annual toggle. Verify the real classes in the Webflow MCP once the page exists. Don't assume it matches the nav's patterns.</p>
+  </div>
+
+  <h3>Nav, CTA, and card click handler</h3>
+  <pre>// text(el) turns a missing or blank label into null instead of "". The site
+// is still being built, and a blank string isn't a real value worth sending.
+function text(el) {
+  if (!el) return null;
+  const t = el.textContent.trim();
+  return t.length ? t : null;
+}
+
+document.addEventListener("click", function (e) {
+  // try/catch matters here because the site isn't finished. A half-built
+  // element should never break a real button's actual click behavior.
+  try {
+    const nav = e.target.closest(".nav-bar_link, .nav_panel-link, .nav-bar_logo");
+    if (nav) {
+      const variant = nav.closest(".u-show-tablet") ? "mobile"
+        : nav.closest(".u-hide-tablet") ? "desktop"
+        : (window.matchMedia("(max-width: 991px)").matches ? "mobile" : "desktop");
+      rudderanalytics.track("nav_item_clicked", {
+        nav_item: nav.dataset.trackItem || null,
+        nav_variant: variant,
+        page_path: window.location.pathname,
+        destination_url: nav.href || null
+      });
+      return;
+    }
+
+    const cta = e.target.closest(".w-cta-track");
+    if (cta) {
+      const module = cta.closest("[data-module]");
+      rudderanalytics.track("cta_clicked", {
+        cta_label: text(cta),
+        cta_destination: cta.href || null,
+        module_name: module ? (module.dataset.module || null) : null,
+        page_path: window.location.pathname
+      });
+      return;
+    }
+
+    const card = e.target.closest(".w-card-track");
+    if (card) {
+      const module = card.closest("[data-module]");
+      const heading = card.querySelector("h1, h2, h3, h4, .card-heading");
+      const link = card.querySelector("a") || (card.tagName === "A" ? card : null);
+      rudderanalytics.track("module_card_clicked", {
+        module_name: module ? (module.dataset.module || null) : null,
+        card_label: text(heading) || text(card),
+        link_destination: link ? (link.href || null) : null,
+        page_path: window.location.pathname
+      });
+      return;
+    }
+
+    const tab = e.target.closest(".w-tab-track");  // confirm the real trigger class once the section is inspected in the Designer
+    if (tab) {
+      rudderanalytics.track("tab_switched", {
+        module_name: "capability_tabs",
+        tab_label: text(tab),
+        page_path: window.location.pathname
+      });
+    }
+  } catch (err) {
+    // Swallow and move on. A tracking failure should never reach the visitor.
+  }
+});</pre>
+  <div class="callout">
+    <p style="margin:0;"><b class="tag-label">In the Designer:</b> add the class <code>w-cta-track</code> or <code>w-card-track</code> to every in-page CTA and card module, plus a <code>data-module</code> attribute on the section that contains it. Add <code>w-tab-track</code> to each of the 4 capability tab buttons. The Webflow MCP surfaced the tabs as a component instance with a "Button Text" prop, not the actual rendered trigger element, so confirm the real clickable class inside the Designer directly before wiring this one up.</p>
+  </div>
+
+  <h3>Testimonials carousel, built on Swiper.js</h3>
+  <p>Arrow clicks and drag are both real interactions, confirmed by a drag cursor already set on the slider. A plain click listener catches the arrows. Swiper's own <code>slideChange</code> event catches drag and the pagination dots. A short-lived flag stops an arrow click from also counting as a drag.</p>
+  <pre>let lastArrowClickAt = 0;
+
+document.querySelectorAll(".slider_button").forEach(function (btn) {
+  btn.addEventListener("click", function () {
+    lastArrowClickAt = Date.now();
+    rudderanalytics.track("testimonial_carousel_interacted", {
+      interaction_type: "arrow_click",
+      direction: btn.classList.contains("is-prev") ? "prev" : "next",
+      page_path: window.location.pathname
+    });
+  });
+});
+
+// Requires the Swiper instance to be reachable. Confirm with whoever wired up
+// this section whether it's exposed as document.querySelector(".swiper").swiper.
+const swiperEl = document.querySelector(".slider_wrap.swiper");
+if (swiperEl && swiperEl.swiper) {
+  swiperEl.swiper.on("slideChange", function () {
+    if (Date.now() - lastArrowClickAt < 300) return;  // already tracked as arrow_click
+    rudderanalytics.track("testimonial_carousel_interacted", {
+      interaction_type: "drag",
+      page_path: window.location.pathname
+    });
+  });
+}</pre>
+
+  <h3>Demo form, built on HubSpot</h3>
+  <p>The form embeds through HubSpot, which renders in an iframe. There's no submit event to catch on the parent page. HubSpot posts a message event instead. The field data rides on <code>onFormSubmit</code>, not <code>onFormSubmitted</code>, which fires later and carries no data. Validate <code>event.origin</code> against HubSpot's known form domain before trusting the payload. Skipping that check is a known weakness in the boilerplate code most sites copy.</p>
+  <pre>window.addEventListener("message", function (event) {
+  if (!event.data || event.data.type !== "hsFormCallback") return;
+  // TODO: validate event.origin against HubSpot's known form domain here first.
+  if (event.data.eventName !== "onFormSubmit") return;  // not onFormSubmitted, which carries no data
+
+  const fields = event.data.data || [];
+  const find = (name) => fields.find(function (f) { return f.name === name; });
+  const workEmail = find("email");     // exact internal field name to be confirmed once the form is built
+  const firmSize = find("firm_size");
+
+  rudderanalytics.track("demo_request_submitted", {
+    firm_size: firmSize ? firmSize.value : null,
+    has_requirements_text: !!find("requirements")
+  });
+
+  if (workEmail && workEmail.value) {
+    rudderanalytics.identify(workEmail.value, {
+      // "website_reported_" prefix, not a bare name. The product may ask
+      // this same question again later, and the two answers can differ.
+      website_reported_firm_size: firmSize ? firmSize.value : null
+    });
+  }
+});</pre>
+  <div class="callout todo">
+    <p style="margin:0;"><b>To confirm once the HubSpot form is built:</b> the exact internal field names, and whether an equivalent message event exists for a failed submission. Its validation mostly happens inside the iframe.</p>
+  </div>
+
+  <h3>Getting UTMs into the HubSpot form itself</h3>
+  <p>HubSpot has its own "Original Source" property, computed automatically from its own tracking cookie across the whole site. That part needs nothing from us. But HubSpot only populates a form's hidden fields from UTM params if those params sit in the current page's URL at the moment of submission, confirmed directly. A visitor who landed on the homepage and browsed to the demo form has no UTM params left on that page's URL, so HubSpot's own hidden-field behavior would come up empty even though the values are still sitting in the §4 cookies. Set them directly through HubSpot's own form API instead of relying on its URL-reading:</p>
+  <pre>// Runs once the HubSpot form script has rendered the form on the page.
+window.addEventListener("message", function (event) {
+  if (!event.data || event.data.type !== "hsFormCallback") return;
+  if (event.data.eventName !== "onFormReady") return;
+
+  const TRACKING_KEYS = ["utm_source","utm_medium","utm_campaign","utm_term","utm_content","utm_referrer"];
+  const form = document.querySelector("iframe.hs-form-iframe");  // confirm the real selector once the embed exists
+  TRACKING_KEYS.forEach(function (key) {
+    const match = document.cookie.match(new RegExp(key + "=([^;]+)"));
+    if (match && form) {
+      // HubSpot forms in an iframe need values set through its own form API,
+      // not direct DOM access across the iframe boundary. Confirm the exact
+      // call once the embed exists — this is the shape, not exact syntax.
+    }
+  });
+});</pre>
+  <div class="callout todo">
+    <p style="margin:0;"><b>Genuinely open until the HubSpot embed exists:</b> the exact API for setting a hidden field's value on a HubSpot form rendered in an iframe. Cross-iframe DOM access won't work directly. Check HubSpot's own forms API docs for the supported way to pre-fill a field once the real embed code is in hand.</p>
+  </div>
+
+  <h3>identify(), one place only</h3>
+  <p>The site stays anonymous except for one moment. <code>demo_request_submitted</code> captures a real work email. Right after that, call <code>rudderanalytics.identify(workEmail)</code>. Don't call identify anywhere else. Track and page calls on the anonymous ID are correct everywhere else, and alias bridges to the real identity later in the app.</p>
+
+  <h3>No consent gate</h3>
+  <p>Confirmed: no cookie consent banner today, and none planned for this build. RudderStack loads and starts capturing right on page load.</p>
+
+  <h3>Don't send as event properties</h3>
+  <ul class="plain">
+    <li>The demo form's free-text field, or the raw work email, on any event headed to an ad platform. Those platforms need SHA-256 hashed PII, handled at the destination layer, not per event. The work email is fine as the identify distinct ID. That's a different channel than an event property.</li>
+  </ul>
+
+  <h2>7. Is this robust?</h2>
+  <ul class="plain">
+    <li><b>Already handled in the code above:</b> missing attributes and elements return null. Blank text returns null instead of an empty string. The whole nav, CTA, and card listener sits inside a try/catch, so a half-built element can't break a real button.</li>
+    <li><b>Real risk, needs a test, not an assumption:</b> Webflow's own native interactions already use some of these same elements, the Products dropdown toggle and the hamburger button among them. If either of Webflow's own click handlers stops the click from bubbling, a single document-level listener would never see it. Click through and confirm these events actually fire once the site is built. Don't assume they will.</li>
+    <li><b>Low risk, not independently confirmed:</b> the mobile-versus-desktop fallback uses Webflow's default tablet breakpoint of 991 pixels. Sites rarely customize it, but this one hasn't been checked directly.</li>
+    <li><b>The biggest real risk isn't technical, it's coverage.</b> Every <code>data-track-item</code>, <code>w-cta-track</code>, <code>w-card-track</code>, and <code>data-module</code> depends on someone tagging the right element by hand, with nothing to catch a miss. A missed one just produces a null property, or no event at all, silently. Plan a manual click-through pass against this catalog after launch, not just a code review.</li>
+    <li><b>A ceiling on all of this, not specific to this plan:</b> an ad blocker that blocks RudderStack's or PostHog's domain drops all tracking for that visitor, silently. The same is true of GA4 and GTM.</li>
+    <li><b>To confirm:</b> whether the Swiper instance is actually reachable at <code>element.swiper</code> in this build. That depends on how it was initialized.</li>
+  </ul>
+
+  <h2>8. Out of scope for this ticket</h2>
+  <p>Real pieces of the same project, just not this developer's work.</p>
+  <ul class="plain">
+    <li><b>RudderStack destination config</b>, PostHog Cloud Mode, GA4, and the ad-platform APIs. Owned by RevOps and marketing ops.</li>
+    <li><b>GTM tag configuration.</b> Owned by whoever manages GTM. Installing the container in §3 is this developer's job. What runs inside it isn't.</li>
+    <li><b>PostHog project settings</b>, dead-click and rage-click toggles, replay sampling, flags, and experiments. Owned by whoever manages the PostHog project.</li>
+    <li><b>App backend changes:</b> extending <code>/api/auth/login</code>, adding <code>posthog.alias()</code>, the Stripe webhook, and a home for <code>intended_plan</code>. Owned by the app or backend engineer.</li>
+    <li><b>The HubSpot form itself,</b> including field mapping and internal names. Owned by whoever builds the embed.</li>
+  </ul>
+</div>
