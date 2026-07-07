@@ -549,7 +549,7 @@ function initLineRevealTestimonials() {
 
       splitTargets: [
         item.querySelector('[data-testimonial-text]'),
-        ...item.querySelectorAll('[data-testimonial-split]'),
+        ...item.querySelectorAll('[data-testimonial-split], .testimonial-lines__name'),
       ].filter(Boolean),
 
       splitInstances: [],
