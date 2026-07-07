@@ -1132,9 +1132,7 @@ function initPriceCards(next = document) {
   }
 }
 
-// Char list + per-char stagger offsets for the highlight fill: each line starts 0.1s
-// after the previous; within a line, chars ripple from the left (left-aligned) or from
-// the center. Shared by the scroll fill and the hero intro fill.
+// Per-char stagger offsets for the fill: later lines start later; chars ripple from left or center.
 function computeCharOffsets(split, isLeftAligned) {
   const allChars = []
   const offsets = []
@@ -1151,10 +1149,31 @@ function computeCharOffsets(split, isLeftAligned) {
   return { allChars, offsets }
 }
 
+// Highlight char-fill, shared by the scroll titles (fromOpacity 0.2) and the hero intro (0).
+function highlightFill(el, split, tl, position = 0, fromOpacity = 0.2) {
+  const cs = getComputedStyle(el)
+  const originalColor = cs.color
+  const highlightColor =
+    cs.getPropertyValue('--_theme---text-color--text-highlight').trim() || originalColor
+  const isLeftAligned = cs.textAlign === 'left' || cs.textAlign === 'start'
+  const { allChars, offsets } = computeCharOffsets(split, isLeftAligned)
+
+  gsap.set(allChars, { color: highlightColor, opacity: fromOpacity })
+  tl.to(
+    allChars,
+    { opacity: 1, duration: 0.2, ease: 'power1.inOut', stagger: (i) => offsets[i] },
+    position
+  )
+  tl.to(
+    allChars,
+    { color: originalColor, duration: 0.4, ease: 'power3.out', stagger: (i) => offsets[i] + 0.2 },
+    position
+  )
+}
+
 const initTitleAnimation = () => {
   document.querySelectorAll('[data-highlight-text]').forEach((el) => {
-    // The hero title fill is driven by the hero intro timeline (from opacity 0) — skip it
-    // only when the intro owns it, so a non-intro hero title still fills on scroll.
+    // Hero title is driven by the intro timeline — skip only when the intro owns it.
     if (el.closest('[data-hero-intro]')) return
 
     new SplitText(el, {
@@ -1162,17 +1181,6 @@ const initTitleAnimation = () => {
       autoSplit: true,
       onSplit(split) {
         return gsap.context(() => {
-          const originalColor = getComputedStyle(el).color
-          const highlightColor = getComputedStyle(el)
-            .getPropertyValue('--_theme---text-color--text-highlight')
-            .trim()
-
-          gsap.set(split.chars, { color: highlightColor, opacity: 0.2 })
-
-          const textAlign = getComputedStyle(el).textAlign
-          const isLeftAligned = textAlign === 'left' || textAlign === 'start'
-          const { allChars, offsets } = computeCharOffsets(split, isLeftAligned)
-
           const tl = gsap.timeline({
             scrollTrigger: {
               trigger: el,
@@ -1180,22 +1188,7 @@ const initTitleAnimation = () => {
               toggleActions: 'play none none none',
             },
           })
-
-          tl.to(
-            allChars,
-            { opacity: 1, duration: 0.2, ease: 'power1.inOut', stagger: (i) => offsets[i] },
-            0
-          )
-          tl.to(
-            allChars,
-            {
-              color: originalColor,
-              duration: 0.4,
-              ease: 'power3.out',
-              stagger: (i) => offsets[i] + 0.2,
-            },
-            0
-          )
+          highlightFill(el, split, tl)
         })
       },
     })
@@ -1396,15 +1389,17 @@ function initTabs() {
 
 const TW_SPEEDS = { slow: 0.14, normal: 0.06, fast: 0.018 }
 
-// Split a target into hidden chars and hand back what a caller needs to build the
-// typewriter reveal tween itself — so both initTypewriter (scroll/load) and the hero
-// intro timeline can drive it without duplicating the split.
+// Split into hidden chars + reveal vars, shared by initTypewriter and the hero intro.
 function typewriterPrep(target) {
   const speedKey = target.getAttribute('data-typewriter-speed') || 'normal'
   const stagger = TW_SPEEDS[speedKey] ?? TW_SPEEDS.normal
   const split = new SplitText(target, { type: 'chars', charsClass: 'tw-char' })
   gsap.set(split.chars, { autoAlpha: 0 })
-  return { split, chars: split.chars, vars: { autoAlpha: 1, duration: 0.01, stagger, ease: 'none' } }
+  return {
+    split,
+    chars: split.chars,
+    vars: { autoAlpha: 1, duration: 0.01, stagger, ease: 'none' },
+  }
 }
 
 function initTypewriter() {
@@ -1415,8 +1410,7 @@ function initTypewriter() {
     gsap.to(chars, opts)
   }
 
-  // The hero eyebrow is driven by the hero intro timeline instead — skip it only when
-  // the intro owns it ([data-hero-intro] present), so nothing regresses before that ships.
+  // Hero eyebrow is driven by the intro timeline — skip only when the intro owns it.
   document
     .querySelectorAll('[data-typewriter="load"]')
     .forEach((el) => el.closest('[data-hero-intro]') || animate(el, null))
@@ -1771,10 +1765,6 @@ const initParallax = (container = document) => {
   })
 }
 
-// Choreographed hero intro (home + almost all pages). Replaces the single Webflow
-// `data-start="hidden"` block-fade with a per-element sequence that overlaps the GL
-// background reveal. The hero content is held hidden by CSS ([data-hero-intro] rules in
-// the Webflow head) until this plays, so there's no flash while main.js loads async.
 const initHeroIntro = () => {
   const hero = document.querySelector('[data-hero-intro]')
   if (!hero) return
@@ -1796,77 +1786,38 @@ const initHeroIntro = () => {
     return
   }
 
-  // Tunable choreography, in seconds from sequence start (~when the GL background begins).
+  // Tunable timing (seconds from sequence start). Eyebrow plays last.
   const T = {
-    eyebrow: 0.6, // wrap fade-in start (0.5-0.8s into the reveal)
-    eyebrowDur: 0.5,
-    type: 0.95, // typewriter starts once the wrap is in
-    title: 1.0, // char fill
-    para: 1.3,
+    title: 0.5, // char fill — leads now that the eyebrow moved to the end
+    para: 0.8,
     paraDur: 0.6,
-    buttons: 1.5,
+    buttons: 1.0,
     buttonsDur: 0.5,
     buttonStagger: 0.08,
-    image: 1.5,
-    imageDur: 1.4,
+    image: 1.0,
+    imageDur: 2,
+    eyebrow: 1.35, // eyebrow animates in LAST: wrap fade...
+    eyebrowDur: 1,
+    type: 1.35, // ...then the typewriter types
   }
 
   const build = () => {
-    const splits = []
-    const tl = gsap.timeline({
-      paused: true,
-      defaults: { ease: 'power3.out' },
-      onComplete: () => splits.forEach((s) => s.revert()),
-    })
+    const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } })
 
-    // 1. Eyebrow wrap fades/rises in (revealing the dot), then the typewriter types.
-    if (eyebrowWrap) {
-      gsap.set(eyebrowWrap, { autoAlpha: 0, y: '0.5rem' })
-      tl.to(eyebrowWrap, { autoAlpha: 1, y: 0, duration: T.eyebrowDur }, T.eyebrow)
-    }
-    if (eyebrowText) {
-      const tw = typewriterPrep(eyebrowText) // hides its chars immediately, before the wrap reveals
-      splits.push(tw.split)
-      tl.to(tw.chars, tw.vars, T.type)
-    }
-
-    // 2. Title: the existing highlight fill, but from opacity 0 and timeline-driven.
+    // title
     if (title) {
       const split = new SplitText(title, { type: 'lines, chars' })
-      splits.push(split)
-      const cs = getComputedStyle(title)
-      const originalColor = cs.color
-      const highlightColor =
-        cs.getPropertyValue('--_theme---text-color--text-highlight').trim() || originalColor
-      const isLeftAligned = cs.textAlign === 'left' || cs.textAlign === 'start'
-      const { allChars, offsets } = computeCharOffsets(split, isLeftAligned)
-
-      gsap.set(allChars, { color: highlightColor, opacity: 0 }) // hide chars first...
-      gsap.set(title, { autoAlpha: 1 }) // ...then reveal the container (no flash of full title)
-      tl.to(
-        allChars,
-        { opacity: 1, duration: 0.2, ease: 'power1.inOut', stagger: (i) => offsets[i] },
-        T.title
-      )
-      tl.to(
-        allChars,
-        {
-          color: originalColor,
-          duration: 0.4,
-          ease: 'power3.out',
-          stagger: (i) => offsets[i] + 0.2,
-        },
-        T.title
-      )
+      highlightFill(title, split, tl, T.title, 0) // hide chars before revealing container (no flash)
+      gsap.set(title, { autoAlpha: 1 })
     }
 
-    // 3. Paragraph: fade + rise.
+    // paragraph
     if (paragraph) {
       gsap.set(paragraph, { autoAlpha: 0, y: '1rem' })
       tl.to(paragraph, { autoAlpha: 1, y: 0, duration: T.paraDur }, T.para)
     }
 
-    // 4. Buttons: fade + rise, one by one.
+    // buttons, one by one
     if (buttons.length) {
       gsap.set(buttons, { autoAlpha: 0, y: '1rem' })
       tl.to(
@@ -1876,7 +1827,7 @@ const initHeroIntro = () => {
       )
     }
 
-    // 5. UI screenshot: slide up in frame + subtle scale.
+    // hero visual
     if (image) {
       gsap.set(image, { autoAlpha: 0, yPercent: 100, scale: 1.05 })
       tl.to(
@@ -1886,6 +1837,16 @@ const initHeroIntro = () => {
       )
     }
 
+    // eyebrow last
+    if (eyebrowWrap) {
+      gsap.set(eyebrowWrap, { autoAlpha: 0, y: '0.5rem' })
+      tl.to(eyebrowWrap, { autoAlpha: 1, y: 0, duration: T.eyebrowDur }, T.eyebrow)
+    }
+    if (eyebrowText) {
+      const tw = typewriterPrep(eyebrowText)
+      tl.to(tw.chars, tw.vars, T.type)
+    }
+
     tl.play()
   }
 
@@ -1893,12 +1854,14 @@ const initHeroIntro = () => {
   // GL reveal). Safety timeout so a slow/failed image never leaves the hero stuck hidden.
   const heroMedia = document.querySelector('[data-hero-reveal]')?.getAttribute('data-hero-media')
   const decoded = heroMedia
-    ? Object.assign(new Image(), { src: heroMedia }).decode().catch(() => {})
+    ? Object.assign(new Image(), { src: heroMedia })
+        .decode()
+        .catch(() => {})
     : Promise.resolve()
 
   Promise.race([
     Promise.all([document.fonts?.ready ?? Promise.resolve(), decoded]),
-    new Promise((resolve) => setTimeout(resolve, 2500)),
+    new Promise((resolve) => setTimeout(resolve, 0)),
   ]).then(build)
 }
 
