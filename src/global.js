@@ -22,6 +22,7 @@ function initTextAnimations() {
   })
 }
 
+/*
 const initNumbersAnimation = () => {
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const initFlag = 'data-odometer-initialized'
@@ -377,6 +378,120 @@ const initNumbersAnimation = () => {
       recalcOnResize()
     }, 250)
   })
+
+  function applyStaggerOrder(items, order) {
+    const arr = [...items]
+    if (order === 'right') return arr.reverse()
+    if (order === 'random') return shuffleArray(arr)
+    return arr
+  }
+
+  function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    return arr
+  }
+}
+*/
+
+const initNumbersAnimation2 = () => {
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const initFlag = 'data-odometer-initialized'
+
+  const defaults = {
+    duration: 1.5, // count-up duration per number (12 ticks -> ~24fps)
+    startFraction: 0.8, // count starts at 80% of the target, not 0
+    steps: 12, // stop-motion ticks: value is held between each (fewer = choppier)
+    elementStagger: 0.1, // delay between numbers in a group
+    triggerStart: 'top bottom',
+    staggerOrder: 'left',
+  }
+
+  // Scroll-triggered groups
+  document.querySelectorAll('[data-odometer-group]').forEach((group) => {
+    if (group.hasAttribute(initFlag)) return
+    group.setAttribute(initFlag, '')
+
+    const elements = Array.from(group.querySelectorAll('[data-odometer-element]'))
+    if (!elements.length || prefersReducedMotion) return
+
+    const staggerOrder = group.getAttribute('data-odometer-stagger-order') || defaults.staggerOrder
+    const triggerStart = group.getAttribute('data-odometer-trigger-start') || defaults.triggerStart
+    const elementStagger =
+      parseFloat(group.getAttribute('data-odometer-stagger')) || defaults.elementStagger
+    const steps = parseFloat(group.getAttribute('data-odometer-steps')) || defaults.steps
+    const startFraction =
+      parseFloat(group.getAttribute('data-odometer-start-fraction')) || defaults.startFraction
+
+    // Count each number up from its start value to its target, digits changing in place.
+    // Prefix/suffix ($, %, +, thousands commas) are stripped, then re-applied every frame.
+    const counters = elements
+      .map((el) => {
+        const originalText = el.textContent.trim()
+        const num = parseNumber(originalText)
+        if (!num) return null
+        const startAttr = el.getAttribute('data-odometer-start')
+        const startValue = startAttr !== null ? parseFloat(startAttr) : num.value * startFraction
+        const duration = parseFloat(el.getAttribute('data-odometer-duration')) || defaults.duration
+        return { el, originalText, startValue, duration, ...num }
+      })
+      .filter(Boolean)
+
+    const tl = gsap.timeline({
+      scrollTrigger: { trigger: group, start: triggerStart, once: true },
+    })
+
+    const stepEase = `steps(${Math.max(1, Math.round(steps))})`
+
+    applyStaggerOrder(counters, staggerOrder).forEach((c, orderIdx) => {
+      const proxy = { val: c.startValue }
+      const render = (v) => {
+        c.el.textContent = c.prefix + format(v, c.decimals, c.grouping) + c.suffix
+      }
+      render(c.startValue) // show start (80% of target) immediately, no flash of the target
+      tl.to(
+        proxy,
+        {
+          val: c.value,
+          duration: c.duration,
+          // Stop-motion cadence: steps() holds each value for a fixed beat, so the number
+          // ticks up in hard discrete jumps instead of rolling smoothly.
+          ease: stepEase,
+          onUpdate() {
+            render(proxy.val)
+          },
+          onComplete() {
+            c.el.textContent = c.originalText // land exactly on the authored text
+          },
+        },
+        orderIdx * elementStagger
+      )
+    })
+  })
+
+  // "$1,234.5+" -> { prefix:'$', suffix:'+', value:1234.5, decimals:1, grouping:true }
+  function parseNumber(text) {
+    const match = text.match(/[\d,]*\d(?:\.\d+)?/)
+    if (!match) return null
+    const numStr = match[0]
+    return {
+      prefix: text.slice(0, match.index),
+      suffix: text.slice(match.index + numStr.length),
+      value: parseFloat(numStr.replace(/,/g, '')),
+      decimals: numStr.includes('.') ? numStr.split('.')[1].length : 0,
+      grouping: numStr.includes(','),
+    }
+  }
+
+  function format(val, decimals, grouping) {
+    return val.toLocaleString('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+      useGrouping: grouping,
+    })
+  }
 
   function applyStaggerOrder(items, order) {
     const arr = [...items]
@@ -1651,7 +1766,7 @@ export function initGlobal() {
   initTitleAnimation()
   initMarqueeScrollDirection()
 
-  initNumbersAnimation()
+  initNumbersAnimation2()
   initButton()
 
   initLineRevealTestimonials()
