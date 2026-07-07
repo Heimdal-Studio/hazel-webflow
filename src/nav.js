@@ -25,6 +25,7 @@ function initScrollBehavior() {
   window.addEventListener('scroll', update, { passive: true })
 }
 
+/*
 function initMegaNavDirectionalHover() {
   const DUR = {
     bgMorph: 0.4,
@@ -675,6 +676,7 @@ function initMegaNavDirectionalHover() {
   // INIT
   state.isMobile ? setupMobile() : resetDesktop()
 }
+*/
 
 function initNavDropdown() {
   const menuWrap = document.querySelector('[data-menu-wrap]')
@@ -947,7 +949,10 @@ function initNavDropdown() {
           const items = navItems()
           const tl = gsap.timeline()
           tl.add(animateBurger(true), 0)
-          if (backdrop) tl.to(backdrop, { autoAlpha: 1, duration: d(0.3), ease: 'power2.out' }, 0)
+          if (backdrop) {
+            gsap.set(backdrop, { visibility: 'visible' })
+            tl.to(backdrop, { opacity: 1, duration: d(0.3), ease: 'power2.out' }, 0)
+          }
           tl.to(navList, { autoAlpha: 1, duration: d(0.3), ease: 'power2.out' }, 0)
           if (items.length) {
             tl.fromTo(
@@ -972,8 +977,10 @@ function initNavDropdown() {
           burger.setAttribute('aria-expanded', 'false')
           const tl = gsap.timeline({ onComplete: () => (document.body.style.overflow = '') })
           tl.add(animateBurger(false), 0)
-          if (backdrop)
-            tl.to(backdrop, { autoAlpha: 0, duration: d(0.3), ease: 'power2.out' }, 0.05)
+          if (backdrop) {
+            tl.to(backdrop, { opacity: 0, duration: d(0.3), ease: 'power2.out' }, 0.05)
+            tl.set(backdrop, { visibility: 'hidden' })
+          }
           tl.to(navList, { autoAlpha: 0, duration: d(0.3), ease: 'power2.inOut' }, 0.05)
         }
 

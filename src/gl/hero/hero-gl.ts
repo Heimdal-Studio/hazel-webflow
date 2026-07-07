@@ -175,6 +175,32 @@ function makeSlot(
   return { size, sync, setAsync, dispose: () => gl.deleteTexture(tex) };
 }
 
+/** Normalized texture-space rect (0..1, origin bottom-left) that the canvas viewport
+ *  samples from the source, mirroring getCoverUv + the top-left reveal zoom in
+ *  hero-shader.ts. Everything outside this rect is cropped off-canvas. Drives the
+ *  tool's live "crop bounds" overlay. */
+export type HeroCropWindow = { x0: number; x1: number; yBot: number; yTop: number };
+
+export function heroCropWindow(
+  imgW: number,
+  imgH: number,
+  resW: number,
+  resH: number,
+  zoom: number,
+): HeroCropWindow {
+  const z = zoom > 0 ? zoom : 1;
+  const ratioX = Math.min(resW / resH / (imgW / imgH), 1);
+  const ratioY = Math.min(resH / resW / (imgH / imgW), 1);
+  const offX = (1 - ratioX) / 2;
+  const offY = (1 - ratioY) / 2;
+  return {
+    x0: offX, // canvas uv.x = 0
+    x1: ratioX / z + offX, // canvas uv.x = 1
+    yBot: (1 - 1 / z) * ratioY + offY, // canvas uv.y = 0
+    yTop: ratioY + offY, // canvas uv.y = 1
+  };
+}
+
 export type HeroGL = {
   canvas: HTMLCanvasElement;
   setImage: (url: string) => void;
@@ -182,6 +208,8 @@ export type HeroGL = {
   setImageAsync: (url: string) => Promise<void>;
   setMaskAsync: (url: string) => Promise<void>;
   render: (params: HeroParams, options: HeroRenderOptions) => void;
+  /** Current crop rect for the given render resolution, or null if no image loaded. */
+  cropWindow: (resW: number, resH: number) => HeroCropWindow | null;
   dispose: () => void;
 };
 
@@ -228,6 +256,7 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
   };
   const source = makeSlot(gl, 0, u("uTexture"));
   const mask = makeSlot(gl, 1, u("uMask"));
+  let lastZoom = 1; // last zoomAmt pushed to the shader, for cropWindow()
 
   const render = (params: HeroParams, { width, height, loopProgress, loopTime, includeBg }: HeroRenderOptions) => {
     if (canvas.width !== width || canvas.height !== height) {
@@ -262,7 +291,8 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     // Reveal zoom runs on its own duration so the scale can settle after the sweep.
     const zoomFrom = params.zoomFrom > 0 ? params.zoomFrom : 1;
     const zoomTo = params.zoomTo > 0 ? params.zoomTo : 1;
-    gl.uniform1f(loc.zoomAmt, zoomFrom + (zoomTo - zoomFrom) * zoomProg);
+    lastZoom = zoomFrom + (zoomTo - zoomFrom) * zoomProg;
+    gl.uniform1f(loc.zoomAmt, lastZoom);
     gl.uniform1f(loc.flowAmp, params.flowAmp);
     gl.uniform1f(loc.flowScale, params.flowScale);
     // Perpetual, seamless flow: the sawtooth is computed here in float64 (a raw float32
@@ -294,6 +324,10 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     setImageAsync: source.setAsync,
     setMaskAsync: mask.setAsync,
     render,
+    cropWindow: (resW, resH) =>
+      source.size[0] > 0 && source.size[1] > 0
+        ? heroCropWindow(source.size[0], source.size[1], resW, resH, lastZoom)
+        : null,
     dispose: () => {
       source.dispose();
       mask.dispose();

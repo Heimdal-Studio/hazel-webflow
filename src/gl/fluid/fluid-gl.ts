@@ -2,6 +2,17 @@
 // or React deps, so a future Webflow runtime can reuse it as-is.
 import { FRAGMENT_SHADER, VERTEX_SHADER } from "./fluid-shader";
 
+/** One colored glow: position and radius in vUv units (0..1, y up). */
+export type FluidGlow = {
+  x: number;
+  y: number;
+  color: string; // hex
+  radius: number; // falloff distance in uv units
+  strength: number; // intensity multiplier, 0..2
+};
+
+export const MAX_FLUID_GLOWS = 5;
+
 export type FluidParams = {
   fieldScale: number; // flow-field granularity (lower = broader, softer sweeps)
   fieldWarp: number; // how much the flow warps the glow positions
@@ -10,9 +21,7 @@ export type FluidParams = {
   fieldSpeed: number; // multiplier on drift+morph; grain unaffected
   contrast: number; // 0..1 slider; mapped to the smoothstep ramp width
   balance: number; // shifts glow intensity dark (-) / bright (+)
-  ink: string; // hex, top-left glow
-  color2: string; // hex, right glow
-  color3: string; // hex, bottom-left glow
+  glows: readonly FluidGlow[]; // 1..5 user-editable glows
   paper: string; // hex, dark base == background color
   grainAmount: number;
   grainScale: number;
@@ -29,9 +38,13 @@ export const DEFAULT_FLUID_PARAMS: FluidParams = {
   fieldSpeed: 1.0,
   contrast: 0.38,
   balance: -0.28,
-  ink: "#7E5F28", // top-left glow (warm gold)
-  color2: "#767A5E", // right glow (cool sage)
-  color3: "#6E3D10", // bottom-left glow (warm orange)
+  glows: [
+    // The classic Hazel staging: warm gold top-left, cool sage right (x kept
+    // on-canvas so its handle is grabbable), warm orange bottom-left.
+    { x: 0.12, y: 0.82, color: "#7E5F28", radius: 0.85, strength: 1 },
+    { x: 0.97, y: 0.52, color: "#767A5E", radius: 0.95, strength: 1 },
+    { x: 0.08, y: 0.12, color: "#6E3D10", radius: 0.7, strength: 1 },
+  ],
   paper: "#191307", // dark base behind the glows == export background
   grainAmount: 0.01,
   grainScale: 1.0,
@@ -111,9 +124,11 @@ export function createFluidGL(canvas: HTMLCanvasElement): FluidGL | null {
     fieldMorph: u("uFieldMorph"),
     toneRamp: u("uToneRamp"),
     toneBalance: u("uToneBalance"),
-    ink: u("uInk"),
-    color2: u("uColor2"),
-    color3: u("uColor3"),
+    glowPos: u("uGlowPos"),
+    glowColor: u("uGlowColor"),
+    glowRadius: u("uGlowRadius"),
+    glowStrength: u("uGlowStrength"),
+    glowCount: u("uGlowCount"),
     paper: u("uPaper"),
     grainAmount: u("uGrainAmount"),
     grainScale: u("uGrainScale"),
@@ -122,6 +137,12 @@ export function createFluidGL(canvas: HTMLCanvasElement): FluidGL | null {
   };
 
   const clamp01 = (v: number) => Math.min(Math.max(v, 0), 1);
+
+  // Scratch arrays reused every frame for the glow uniform upload.
+  const glowPos = new Float32Array(MAX_FLUID_GLOWS * 2);
+  const glowColor = new Float32Array(MAX_FLUID_GLOWS * 3);
+  const glowRadius = new Float32Array(MAX_FLUID_GLOWS);
+  const glowStrength = new Float32Array(MAX_FLUID_GLOWS);
 
   const render = (
     params: FluidParams,
@@ -144,13 +165,25 @@ export function createFluidGL(canvas: HTMLCanvasElement): FluidGL | null {
     // Higher Contrast slider = narrower smoothstep ramp = harder light/dark.
     gl.uniform1f(loc.toneRamp, 1.3 + (0.1 - 1.3) * clamp01(params.contrast));
     gl.uniform1f(loc.toneBalance, params.balance);
-    const ink = hexRgb(params.ink);
-    const color2 = hexRgb(params.color2);
-    const color3 = hexRgb(params.color3);
+    const glows = params.glows.length >= 1 ? params.glows : DEFAULT_FLUID_PARAMS.glows;
+    const glowCount = Math.min(glows.length, MAX_FLUID_GLOWS);
+    for (let i = 0; i < glowCount; i++) {
+      const glow = glows[i];
+      const [r, g, b] = hexRgb(glow.color);
+      glowPos[i * 2] = glow.x;
+      glowPos[i * 2 + 1] = glow.y;
+      glowColor[i * 3] = r;
+      glowColor[i * 3 + 1] = g;
+      glowColor[i * 3 + 2] = b;
+      glowRadius[i] = glow.radius;
+      glowStrength[i] = glow.strength;
+    }
+    gl.uniform2fv(loc.glowPos, glowPos);
+    gl.uniform3fv(loc.glowColor, glowColor);
+    gl.uniform1fv(loc.glowRadius, glowRadius);
+    gl.uniform1fv(loc.glowStrength, glowStrength);
+    gl.uniform1i(loc.glowCount, glowCount);
     const paper = hexRgb(params.paper);
-    gl.uniform3f(loc.ink, ink[0], ink[1], ink[2]);
-    gl.uniform3f(loc.color2, color2[0], color2[1], color2[2]);
-    gl.uniform3f(loc.color3, color3[0], color3[1], color3[2]);
     gl.uniform3f(loc.paper, paper[0], paper[1], paper[2]);
     gl.uniform1f(loc.grainAmount, params.grainAmount);
     gl.uniform1f(loc.grainScale, params.grainScale);

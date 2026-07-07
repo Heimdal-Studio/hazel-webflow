@@ -8,11 +8,31 @@
 // The render core is synced from ../../../hazel-gl (see scripts/sync-gl-cores.mjs).
 import { createFluidGL, DEFAULT_FLUID_PARAMS } from "./fluid-gl";
 
+// Legacy configs (pre glow-dots, 2026-07-06) carried ink/color2/color3 instead
+// of a glows[] array. Map them onto the classic fixed anchors so published
+// embeds keep rendering pixel-identically (x 1.02 is intentionally off-canvas,
+// matching the old shader constants).
+function upgradeLegacyConfig(config) {
+  if (config.glows || !(config.ink || config.color2 || config.color3)) return config;
+  const d = DEFAULT_FLUID_PARAMS.glows;
+  return {
+    ...config,
+    glows: [
+      { x: 0.12, y: 0.82, color: config.ink || d[0].color, radius: 0.85, strength: 1 },
+      { x: 1.02, y: 0.52, color: config.color2 || d[1].color, radius: 0.95, strength: 1 },
+      { x: 0.08, y: 0.12, color: config.color3 || d[2].color, radius: 0.7, strength: 1 },
+    ],
+  };
+}
+
 function readConfig(el) {
   const node = el.querySelector('script[type="application/json"][data-fluid-config]');
   if (!node) return { ...DEFAULT_FLUID_PARAMS };
   try {
-    return { ...DEFAULT_FLUID_PARAMS, ...JSON.parse(node.textContent || "{}") };
+    return {
+      ...DEFAULT_FLUID_PARAMS,
+      ...upgradeLegacyConfig(JSON.parse(node.textContent || "{}")),
+    };
   } catch (error) {
     console.error("[fluid-bg] invalid config JSON", error);
     return { ...DEFAULT_FLUID_PARAMS };

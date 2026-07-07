@@ -1619,6 +1619,33 @@ const initNotificationBanner = () => {
   })
 }
 
+const initParallax = (container = document) => {
+  if (!container.querySelector('.parallax, .parallax-large')) return
+
+  const mm = gsap.matchMedia()
+  mm.add(MQ.tabletUp, () => {
+    container.querySelectorAll('.parallax, .parallax-large').forEach((parallaxImg) => {
+      const parallaxParent = parallaxImg.parentElement
+      if (!parallaxImg) return
+
+      const yPercent = parallaxImg.classList.contains('parallax-large') ? 24 : 14
+
+      gsap
+        .timeline({
+          defaults: { ease: 'none' },
+          scrollTrigger: {
+            trigger: parallaxParent,
+            start: 'clamp(top bottom)',
+            end: 'bottom top',
+            scrub: true,
+            invalidateOnRefresh: true,
+          },
+        })
+        .to(parallaxImg, { yPercent })
+    })
+  })
+}
+
 export function initGlobal() {
   initTextAnimations()
   initTitleAnimation()
@@ -1643,4 +1670,6 @@ export function initGlobal() {
   initCursor()
 
   initNotificationBanner()
+
+  initParallax()
 }

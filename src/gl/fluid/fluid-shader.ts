@@ -1,9 +1,9 @@
 // WebGL2 (GLSL ES 3.00) Fluid BGs shader.
 //
-// A fully procedural animated background: a dark base color lit by three soft,
-// drifting colored glows (top-left, right, bottom-left), plus an optional twill
-// line screen and film grain. All motion rides a circle of the loop phase
-// (uLoopT) so the first and last frames stitch exactly for seamless loop export.
+// A fully procedural animated background: a dark base color lit by up to five
+// soft, drifting colored glows at user-editable positions and radii, plus film
+// grain. All motion rides a circle of the loop phase (uLoopT) so the first and
+// last frames stitch exactly for seamless loop export.
 //
 // snoise + mod289/permute are the Ashima Arts simplex noise (MIT), reused
 // verbatim from the sibling hero-gl app.
@@ -31,9 +31,11 @@ uniform float uFieldDrift;    // orbit radius per loop (travel)
 uniform float uFieldMorph;    // fold-evolution amount per loop (fluidity)
 uniform float uToneRamp;      // smoothstep half-width (from Contrast)
 uniform float uToneBalance;   // shifts glow intensity dark (-) / bright (+)
-uniform vec3  uInk;           // top-left glow color
-uniform vec3  uColor2;        // right glow color
-uniform vec3  uColor3;        // bottom-left glow color
+uniform vec2  uGlowPos[5];      // glow centers in vUv units (y up)
+uniform vec3  uGlowColor[5];    // glow colors
+uniform float uGlowRadius[5];   // falloff distance in uv units
+uniform float uGlowStrength[5]; // per-glow intensity multiplier
+uniform int   uGlowCount;       // 1..5
 uniform vec3  uPaper;         // dark base color == background
 uniform float uGrainAmount;
 uniform float uGrainScale;
@@ -97,23 +99,24 @@ void main() {
   // 2. Grain — additive snoise speckle (phase 0 = static).
   float grain = snoise(gl_FragCoord.xy * uGrainScale + uGrainPhase);
 
-  // 4. Glow field: a dark base (uPaper) lit by three soft colored glows at fixed
-  //    anchors — uInk top-left, uColor2 mid-right, uColor3 bottom-left. The flow
-  //    warps the sample point and 'base' (Contrast + Balance) breathes the glow
-  //    intensity, so the light pools drift and pulse organically instead of
-  //    sitting as static radial blobs. Matches the Hazel hero: warm gold + orange
-  //    on the left, cool sage on the right, deep dark center.
+  // 4. Glow field: a dark base (uPaper) lit by up to five soft colored glows at
+  //    user-editable anchors. The flow warps the sample point and 'base'
+  //    (Contrast + Balance) breathes the glow intensity, so the light pools
+  //    drift and pulse organically instead of sitting as static radial blobs.
+  //    distance() runs in plain vUv units (matching the DOM handle overlay's
+  //    ellipse rings); later glows mix over earlier ones.
   vec2 gp = vUv + q * (uFieldWarp * 0.22) + drift * 0.8;
   float breathe = 0.5 + 0.5 * base;
-  float gTL = smoothstep(0.85, 0.0, distance(gp, vec2(0.12, 0.82))) * breathe;
-  float gR  = smoothstep(0.95, 0.0, distance(gp, vec2(1.02, 0.52))) * breathe;
-  float gBL = smoothstep(0.70, 0.0, distance(gp, vec2(0.08, 0.12))) * breathe;
   vec3 color = uPaper;
-  color = mix(color, uInk, clamp(gTL, 0.0, 1.0));
-  color = mix(color, uColor2, clamp(gR, 0.0, 1.0));
-  color = mix(color, uColor3, clamp(gBL, 0.0, 1.0));
+  float glowCover = 0.0;
+  for (int i = 0; i < 5; i++) {
+    if (i >= uGlowCount) break;
+    float g = smoothstep(uGlowRadius[i], 0.0, distance(gp, uGlowPos[i])) * breathe * uGlowStrength[i];
+    color = mix(color, uGlowColor[i], clamp(g, 0.0, 1.0));
+    glowCover += g;
+  }
   color = clamp(color + grain * uGrainAmount, 0.0, 1.0);
-  float glowCover = clamp(gTL + gR + gBL, 0.0, 1.0);
+  glowCover = clamp(glowCover, 0.0, 1.0);
   float alpha = uIncludeBg > 0.5 ? 1.0 : glowCover;
   outColor = vec4(color, alpha);
 }
