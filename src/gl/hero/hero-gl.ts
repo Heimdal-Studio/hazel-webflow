@@ -42,7 +42,7 @@ export const DEFAULT_HERO_PARAMS: HeroParams = {
   blur: 16,
   revealDuration: 2.5,
   zoomFrom: 0.5,
-  zoomTo: 2,
+  zoomTo: 1,
   zoomDuration: 3,
   maskStyle: "static",
   maskStart: 2,
@@ -53,7 +53,7 @@ export const DEFAULT_HERO_PARAMS: HeroParams = {
   noiseScale: 2.4,
   waveSpeed: 0.2,
   flowAmp: 0.12,
-  flowScale: 1.0,
+  flowScale: 0.5,
   flowSpeed: 0.2,
   flowDrift: 0.4,
   grainAmount: 0.03,
@@ -324,10 +324,8 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     setImageAsync: source.setAsync,
     setMaskAsync: mask.setAsync,
     render,
-    cropWindow: (resW, resH) =>
-      source.size[0] > 0 && source.size[1] > 0
-        ? heroCropWindow(source.size[0], source.size[1], resW, resH, lastZoom)
-        : null,
+    cropWindow: (resW: number, resH: number) =>
+      source.size[0] > 0 ? heroCropWindow(source.size[0], source.size[1], resW, resH, lastZoom) : null,
     dispose: () => {
       source.dispose();
       mask.dispose();
