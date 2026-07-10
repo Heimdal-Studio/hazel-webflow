@@ -4,18 +4,31 @@ function initScrollBehavior() {
 
   const offsetY = 60
   const scrollThreshold = offsetY + 1200
-  let oldScroll = 0
+  const HIDE_DELTA = 20 // scroll down this far before hiding
+  const SHOW_DELTA = 10 // scroll up this far before revealing (sooner than hiding)
+
+  let lastY = window.scrollY
+  let dir = 0 // 1 down, -1 up
+  let anchor = lastY // resets on every direction reversal
 
   function update() {
-    const scrollY = window.scrollY
+    const y = Math.max(0, window.scrollY)
 
-    nav.classList.toggle('is--scrolled', scrollY > offsetY)
+    nav.classList.toggle('is--scrolled', y > offsetY)
 
-    const shouldHide =
-      scrollY > scrollThreshold && scrollY > oldScroll && nav.classList.contains('is--scrolled')
-    nav.classList.toggle('is--scrolled-full', shouldHide)
+    const newDir = y > lastY ? 1 : y < lastY ? -1 : dir
+    if (newDir !== dir) {
+      dir = newDir
+      anchor = lastY
+    }
 
-    oldScroll = scrollY
+    if (dir === 1 && y > scrollThreshold && y - anchor >= HIDE_DELTA) {
+      nav.classList.add('is--scrolled-full')
+    } else if (dir === -1 && anchor - y >= SHOW_DELTA) {
+      nav.classList.remove('is--scrolled-full')
+    }
+
+    lastY = y
   }
 
   // Initial check

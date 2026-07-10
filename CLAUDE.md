@@ -7,6 +7,10 @@ Vite repo serving all custom JS for the Hazel Webflow site. Two bundles, both bu
 
 Webflow loads both via the smart loader in Project Settings → Custom Code → before `</body>`: it probes `localhost:4012` and falls back to the Vercel URLs. The localhost list must include `src/gl/embed.js` (third entry) or GL effects vanish in dev mode. A `<link rel="preload" href="…/gl.js" as="script">` in Head Code covers the loader's probe-roundtrip delay ("preloaded but not used" console warnings in dev mode are expected noise).
 
+## Code style
+
+Match the surrounding file. On comments specifically: write few. Code should read on its own, so comment only the non-obvious *why* — a gotcha, an ordering constraint, a workaround — never the *what*. No block comment narrating a function (one short line above a shared helper is the max), no step-by-step narration inside a function body (a one-word section label at most), no inline comment that just restates its line.
+
 ## GL effects (authored in ../hazel-gl, served from here)
 
 - `src/gl/<effect>/index.js` — Webflow runtime per effect; mounts `[data-hero-reveal]` / `[data-career-hero]` / `[data-fluid-bg]` embeds (data attrs for asset URLs + inline `<script type="application/json" data-*-config>` for tuned params).

@@ -33,7 +33,35 @@ import { initPainterly } from './painterly-reveal/index.js'
   // settle event (fonts ready, load, lazy images) into ONE debounced refresh.
   function initScrollRefresh() {
     if (typeof ScrollTrigger === 'undefined') return
-    const refresh = debounce(() => ScrollTrigger.refresh(), 250)
+
+    // A refresh is a synchronous reflow; running it mid-scroll stalls momentum
+    // scrolling on mobile (the "scroll keeps stopping" bug). Gate every refresh
+    // behind scroll-idle: if the user is scrolling, defer to one refresh once
+    // they pause.
+    let scrolling
+    let pending
+    addEventListener(
+      'scroll',
+      () => {
+        clearTimeout(scrolling)
+        scrolling = setTimeout(() => {
+          scrolling = null
+          if (pending) {
+            pending = false
+            ScrollTrigger.refresh()
+          }
+        }, 200)
+      },
+      { passive: true }
+    )
+
+    const refresh = debounce(() => {
+      if (scrolling) {
+        pending = true
+        return
+      }
+      ScrollTrigger.refresh()
+    }, 250)
 
     document.fonts?.ready.then(refresh) // display font swap reflows text (incl. SplitText)
 
