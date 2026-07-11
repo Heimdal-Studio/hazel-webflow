@@ -401,15 +401,14 @@ const initNumbersAnimation2 = () => {
   const initFlag = 'data-odometer-initialized'
 
   const defaults = {
-    duration: 1.5, // count-up duration per number (12 ticks -> ~24fps)
-    startFraction: 0.8, // count starts at 80% of the target, not 0
-    steps: 12, // stop-motion ticks: value is held between each (fewer = choppier)
-    elementStagger: 0.1, // delay between numbers in a group
+    duration: 1.5, // count-up (s)
+    startFraction: 0.8, // start at 80% of target
+    steps: 12, // stop-motion ticks (fewer = choppier)
+    elementStagger: 0.1, // stagger between numbers
     triggerStart: 'top bottom',
     staggerOrder: 'left',
   }
 
-  // Scroll-triggered groups
   document.querySelectorAll('[data-odometer-group]').forEach((group) => {
     if (group.hasAttribute(initFlag)) return
     group.setAttribute(initFlag, '')
@@ -425,8 +424,7 @@ const initNumbersAnimation2 = () => {
     const startFraction =
       parseFloat(group.getAttribute('data-odometer-start-fraction')) || defaults.startFraction
 
-    // Count each number up from its start value to its target, digits changing in place.
-    // Prefix/suffix ($, %, +, thousands commas) are stripped, then re-applied every frame.
+    // count up start→target; prefix/suffix re-applied each frame
     const counters = elements
       .map((el) => {
         const originalText = el.textContent.trim()
@@ -450,20 +448,19 @@ const initNumbersAnimation2 = () => {
       const render = (v) => {
         c.el.textContent = c.prefix + format(v, c.decimals, c.grouping) + c.suffix
       }
-      render(c.startValue) // show start (80% of target) immediately, no flash of the target
+      render(c.startValue) // show start, no flash of target
       tl.to(
         proxy,
         {
           val: c.value,
           duration: c.duration,
-          // Stop-motion cadence: steps() holds each value for a fixed beat, so the number
-          // ticks up in hard discrete jumps instead of rolling smoothly.
+          // stop-motion: discrete ticks
           ease: stepEase,
           onUpdate() {
             render(proxy.val)
           },
           onComplete() {
-            c.el.textContent = c.originalText // land exactly on the authored text
+            c.el.textContent = c.originalText // land on authored text
           },
         },
         orderIdx * elementStagger
@@ -471,7 +468,7 @@ const initNumbersAnimation2 = () => {
     })
   })
 
-  // "$1,234.5+" -> { prefix:'$', suffix:'+', value:1234.5, decimals:1, grouping:true }
+  // split prefix / number / suffix
   function parseNumber(text) {
     const match = text.match(/[\d,]*\d(?:\.\d+)?/)
     if (!match) return null
@@ -511,12 +508,10 @@ const initNumbersAnimation2 = () => {
 
 function initMarqueeScrollDirection(container = document) {
   container.querySelectorAll('[data-marquee-scroll-direction-target]').forEach((marquee) => {
-    // Query marquee elements
     const marqueeContent = marquee.querySelector('[data-marquee-collection-target]')
     const marqueeScroll = marquee.querySelector('[data-marquee-scroll-target]')
     if (!marqueeContent || !marqueeScroll) return
 
-    // Get data attributes
     const {
       marqueeSpeed: speed,
       marqueeDirection: direction,
@@ -524,9 +519,8 @@ function initMarqueeScrollDirection(container = document) {
       marqueeScrollSpeed: scrollSpeed,
     } = marquee.dataset
 
-    // Convert data attributes to usable types
     const marqueeSpeedAttr = parseFloat(speed) || 30
-    const marqueeDirectionAttr = direction === 'right' ? 1 : -1 // 1 for right, -1 for left
+    const marqueeDirectionAttr = direction === 'right' ? 1 : -1
     const duplicateAmount = parseInt(duplicate || 0)
     const scrollSpeedAttr = parseFloat(scrollSpeed) || 1
     const speedMultiplier = window.innerWidth < 479 ? 0.25 : window.innerWidth < 991 ? 0.5 : 1
@@ -534,11 +528,9 @@ function initMarqueeScrollDirection(container = document) {
     const marqueeSpeed =
       marqueeSpeedAttr * (marqueeContent.offsetWidth / window.innerWidth) * speedMultiplier
 
-    // Precompute styles for the scroll container
     marqueeScroll.style.marginLeft = `${scrollSpeedAttr * -1}%`
     marqueeScroll.style.width = `${scrollSpeedAttr * 2 + 100}%`
 
-    // Duplicate marquee content
     if (duplicateAmount > 0) {
       const fragment = document.createDocumentFragment()
       for (let i = 0; i < duplicateAmount; i++) {
@@ -547,41 +539,35 @@ function initMarqueeScrollDirection(container = document) {
       marqueeScroll.appendChild(fragment)
     }
 
-    // GSAP animation for marquee content
     const marqueeItems = marquee.querySelectorAll('[data-marquee-collection-target]')
     const animation = gsap
       .to(marqueeItems, {
-        xPercent: -100, // Move completely out of view
+        xPercent: -100,
         repeat: -1,
         duration: marqueeSpeed,
         ease: 'linear',
       })
       .totalProgress(0.5)
 
-    // Initialize marquee in the correct direction
     gsap.set(marqueeItems, { xPercent: marqueeDirectionAttr === 1 ? 100 : -100 })
-    animation.timeScale(marqueeDirectionAttr) // Set correct direction
-    animation.play() // Start animation immediately
+    animation.timeScale(marqueeDirectionAttr)
+    animation.play()
 
-    // Set initial marquee status
     marquee.setAttribute('data-marquee-status', 'normal')
 
-    // ScrollTrigger logic for direction inversion
     ScrollTrigger.create({
       trigger: marquee,
       start: 'top bottom',
       end: 'bottom top',
       onUpdate: (self) => {
-        const isInverted = self.direction === 1 // Scrolling down
+        const isInverted = self.direction === 1
         const currentDirection = isInverted ? -marqueeDirectionAttr : marqueeDirectionAttr
 
-        // Update animation direction and marquee status
         animation.timeScale(currentDirection)
         marquee.setAttribute('data-marquee-status', isInverted ? 'normal' : 'inverted')
       },
     })
 
-    // Extra speed effect on scroll
     const tl = gsap.timeline({
       scrollTrigger: {
         trigger: marquee,
@@ -615,9 +601,8 @@ function initButton(container = document) {
       span.textContent = char
       span.style.transitionDelay = `${index * offsetIncrement}s`
 
-      // Handle spaces explicitly
       if (char === ' ') {
-        span.style.whiteSpace = 'pre' // Preserve space width
+        span.style.whiteSpace = 'pre'
       }
 
       button.appendChild(span)
@@ -717,16 +702,13 @@ function initLineRevealTestimonials() {
       startAutoplay()
     }
 
-    // Set initial state
     slides.forEach((_, i) => setSlideState(i, i === activeIndex))
     updateCounter()
 
-    // Handle reduced motion preference
     gsap.matchMedia().add({ reduce: '(prefers-reduced-motion: reduce)' }, (context) => {
       reduceMotion = context.conditions.reduce
     })
 
-    // Create SplitText instances
     slides.forEach((slide, slideIndex) => {
       slide.splitInstances = slide.splitTargets.map((el) =>
         SplitText.create(el, {
@@ -852,7 +834,6 @@ function initLineRevealTestimonials() {
       tl.set(outgoingSlide.item, { autoAlpha: 0 }, '>')
     }
 
-    // Start autoplay on the wrap (only works if autoplay is set to 'true')
     startAutoplay()
 
     if (btnNext) {
@@ -872,7 +853,7 @@ function initLineRevealTestimonials() {
     function onKeyDown(e) {
       if (!isInView) return
 
-      // Don't hijack arrow keys while user is typing.
+      // skip while typing
       const t = e.target
       const isTypingTarget =
         t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
@@ -892,10 +873,8 @@ function initLineRevealTestimonials() {
       }
     }
 
-    // Listen for left/right arrows
     window.addEventListener('keydown', onKeyDown)
 
-    // Enable/disable keyboard + autoplay depending on scroll position
     ScrollTrigger.create({
       trigger: wrap,
       start: 'top bottom',
@@ -1050,7 +1029,6 @@ function initPriceCards(next = document) {
         0
       )
 
-    // HOVERING
     cards.forEach((card) => {
       card.addEventListener('mouseenter', () => {
         cards.forEach((c) => c.classList.remove('is--active'))
@@ -1075,7 +1053,6 @@ function initPriceCards(next = document) {
       })
     })
 
-    // PRICE CHANGE
     const solo = next.querySelector('[data-price-solo]')
     const joint = next.querySelector('[data-price-joint]')
     const toggleTl = gsap.timeline({ paused: true })
@@ -1132,7 +1109,7 @@ function initPriceCards(next = document) {
   }
 }
 
-// Per-char stagger offsets for the fill: later lines start later; chars ripple from left or center.
+// per-char stagger offsets
 function computeCharOffsets(split, isLeftAligned) {
   const allChars = []
   const offsets = []
@@ -1149,7 +1126,7 @@ function computeCharOffsets(split, isLeftAligned) {
   return { allChars, offsets }
 }
 
-// Highlight char-fill, shared by the scroll titles (fromOpacity 0.2) and the hero intro (0).
+// char-fill highlight (titles + hero)
 function highlightFill(el, split, tl, position = 0, fromOpacity = 0.2) {
   const cs = getComputedStyle(el)
   const originalColor = cs.color
@@ -1173,7 +1150,7 @@ function highlightFill(el, split, tl, position = 0, fromOpacity = 0.2) {
 
 const initTitleAnimation = () => {
   document.querySelectorAll('[data-highlight-text]').forEach((el) => {
-    // Hero title is driven by the intro timeline — skip only when the intro owns it.
+    // intro timeline owns the hero title
     if (el.closest('[data-hero-intro]')) return
 
     new SplitText(el, {
@@ -1211,6 +1188,8 @@ function initTabs() {
   const wrap = document.querySelector('[data-init-progress]')
   if (!wrap) return
 
+  const VISUAL_SELECTOR = '.visual_img' // edit if Webflow renames it
+
   const progressItems = [...wrap.querySelectorAll('.progress_item')]
   const visualItems = [...wrap.querySelectorAll('.progress-visual_item')]
 
@@ -1219,14 +1198,13 @@ function initTabs() {
   const count = progressItems.length
   if (!count) return
 
-  const AUTOPLAY_DURATION = 7 // seconds the progress bar takes to fill
-  const SWITCH_DURATION = 0.6 // expand / collapse (kept in lockstep)
-  const EXPAND_EASE = 'power2.inOut' // shared by collapse + expand so heights track
-  const CONTENT_FADE = 1 // content reveal in
-  const CONTENT_OUT = 0.25 // content fade out
+  const AUTOPLAY_DURATION = 7 // bar fill (s)
+  const SWITCH_DURATION = 0.6 // expand/collapse
+  const EXPAND_EASE = 'power2.inOut' // collapse + expand
+  const CONTENT_FADE = 1 // reveal in
+  const CONTENT_OUT = 0.25 // fade out
   const REVEAL_STAGGER = 0.03
 
-  // Per-item element refs
   const tabs = progressItems.map((item) => ({
     item,
     line: item.querySelector('.progress_line'),
@@ -1236,7 +1214,6 @@ function initTabs() {
     reveal: [...item.querySelectorAll('.progress_expand > *')],
   }))
 
-  // Collapsed starting state
   tabs.forEach((tab) => {
     if (tab.expand) gsap.set(tab.expand, { display: 'block', height: 0 })
     if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: '1rem' })
@@ -1244,18 +1221,16 @@ function initTabs() {
     if (tab.line) gsap.set(tab.line, { height: barHeightInitial })
     if (tab.cap) gsap.set(tab.cap, { top: 0, y: parseFloat(barHeightInitial) })
   })
-  // Hide all visuals except the first — it's visible from load so there's no
-  // late pop-in when the ScrollTrigger fires
+  // first is visible from load
   visualItems.forEach((v, i) =>
-    gsap.set(v.querySelector('.progress-visual_visual-w'), { autoAlpha: i === 0 ? 1 : 0 })
+    gsap.set(v.querySelector(VISUAL_SELECTOR), { autoAlpha: i === 0 ? 1 : 0 })
   )
 
   let activeIndex = null
-  let currentTl = null // in-progress switch timeline (so we can interrupt it)
+  let currentTl = null
   let barTween = null
-  const BAR_START_DELAY = 0.15 // small pause before the timer bar starts filling
+  const BAR_START_DELAY = 0.15
 
-  // Fill the active item's progress bar, then advance to the next tab
   function startProgressBar(index, target) {
     if (barTween) barTween.kill()
     const { bar, cap } = tabs[index]
@@ -1273,22 +1248,19 @@ function initTabs() {
   function switchTab(index) {
     if (index === activeIndex) return
     const isFirst = activeIndex === null
-    activeIndex = index // claim immediately so re-clicks compare correctly
-    if (currentTl) currentTl.kill() // interrupt any switch already in progress
+    activeIndex = index // claim before await
+    if (currentTl) currentTl.kill()
 
     const incoming = tabs[index]
-    const incomingVisual = visualItems[index].querySelector('.progress-visual_visual-w')
+    const incomingVisual = visualItems[index].querySelector(VISUAL_SELECTOR)
 
     progressItems.forEach((el, i) => el.classList.toggle('is--active', i === index))
 
-    // Item's final (expanded) height — drives both the line-track target and the
-    // progress-bar fill (the track is still growing when the bar starts, so we
-    // can't use "100%").
+    // expanded height (track still growing)
     const lineTarget = incoming.expand
       ? incoming.item.getBoundingClientRect().height + incoming.expand.scrollHeight
       : incoming.item.getBoundingClientRect().height
 
-    // Start the timer the moment we switch, in parallel with the transition
     startProgressBar(index, lineTarget)
 
     const tl = gsap.timeline({
@@ -1298,8 +1270,7 @@ function initTabs() {
     })
     currentTl = tl
 
-    // Collapse every other tab from its CURRENT state — `to` (not `fromTo`) means an
-    // interrupted, half-open item animates from where it is, never popping or stranding.
+    // `to` so interrupts collapse in place
     tabs.forEach((tab, i) => {
       if (i === index) return
       if (tab.expand)
@@ -1316,17 +1287,15 @@ function initTabs() {
         tl.to(tab.cap, { y: parseFloat(barHeightInitial), duration: 0.3, ease: 'power4.out' }, 0)
       if (tab.reveal.length)
         tl.to(tab.reveal, { autoAlpha: 0, y: '-1rem', duration: CONTENT_OUT, ease: 'power2.in' }, 0)
-      const vis = visualItems[i].querySelector('.progress-visual_visual-w')
+      const vis = visualItems[i].querySelector(VISUAL_SELECTOR)
       if (vis) tl.to(vis, { autoAlpha: 0, y: '2rem', duration: 0.5, ease: 'power2.in' }, 0)
     })
 
-    // Expand incoming from its current state (`to`, not `fromTo`, so height never pops)
     if (incoming.expand)
       tl.to(incoming.expand, { height: 'auto', duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0)
     if (incoming.line)
       tl.to(incoming.line, { height: lineTarget, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0)
 
-    // Incoming content + visual reveal
     if (incoming.reveal.length) {
       tl.fromTo(
         incoming.reveal,
@@ -1342,7 +1311,7 @@ function initTabs() {
       )
     }
     if (incomingVisual) {
-      // First switch to tab 0: its visual is already visible from load, nothing to animate
+      // tab 0 already visible
       if (!(isFirst && index === 0)) {
         tl.fromTo(
           incomingVisual,
@@ -1354,9 +1323,7 @@ function initTabs() {
     }
   }
 
-  // Start the autoplay loop once the section scrolls into view; pause the whole
-  // cycle (timer + switch animations) while off-screen so nothing shifts layout
-  // mid-scroll, resume when it comes back.
+  // autoplay only while in view
   let started = false
   ScrollTrigger.create({
     trigger: '[data-init-progress]',
@@ -1378,7 +1345,7 @@ function initTabs() {
     },
   })
 
-  // Click a card to jump to it (but let the inner CTA link through)
+  // click to jump; let CTA through
   progressItems.forEach((item, i) => {
     item.addEventListener('click', (e) => {
       if (e.target.closest('.button-w')) return
@@ -1389,7 +1356,7 @@ function initTabs() {
 
 const TW_SPEEDS = { slow: 0.14, normal: 0.06, fast: 0.018 }
 
-// Split into hidden chars + reveal vars, shared by initTypewriter and the hero intro.
+// hidden chars + reveal vars
 function typewriterPrep(target) {
   const speedKey = target.getAttribute('data-typewriter-speed') || 'normal'
   const stagger = TW_SPEEDS[speedKey] ?? TW_SPEEDS.normal
@@ -1410,7 +1377,7 @@ function initTypewriter() {
     gsap.to(chars, opts)
   }
 
-  // Hero eyebrow is driven by the intro timeline — skip only when the intro owns it.
+  // intro timeline owns the hero eyebrow
   document
     .querySelectorAll('[data-typewriter="load"]')
     .forEach((el) => el.closest('[data-hero-intro]') || animate(el, null))
@@ -1521,7 +1488,7 @@ const initAnimateCards = () => {
             invalidateOnRefresh: true,
           },
         })
-        // from: 'center' makes a 2-card row equidistant (no stagger), so fall back to 'start'
+        // center stagger breaks 2-card rows
         .to(ui, {
           y: '0rem',
           duration: 1.1,
@@ -1531,12 +1498,12 @@ const initAnimateCards = () => {
   })
 }
 
-// Drag cursor follower + press inset on sliders — both tablet-and-up only
+// cursor follower + slider press inset (tablet+)
 function initCursor() {
   gsap.matchMedia().add(MQ.tabletUp, () => {
     const cleanups = []
 
-    // --- cursor follower ---
+    // cursor follower
     const follower = document.querySelector('.cursor-item')
     if (follower) {
       let targetX = 0,
@@ -1627,12 +1594,12 @@ function initCursor() {
       })
     }
 
-    // --- press inset ---
+    // press inset
     document.querySelectorAll('.slider_wrap').forEach((wrap) => {
       const items = wrap.querySelectorAll('.slider_item-w')
       if (!items.length) return
 
-      gsap.set(items, { clipPath: 'inset(0rem round 1rem)' }) // numeric baseline so inset() interpolates
+      gsap.set(items, { clipPath: 'inset(0rem round 1rem)' }) // numeric baseline to interpolate
 
       const press = () =>
         gsap.to(items, { clipPath: 'inset(.25rem round 1rem)', duration: 0.4, ease: 'power3.out' })
@@ -1640,7 +1607,7 @@ function initCursor() {
         gsap.to(items, { clipPath: 'inset(0rem round 1rem)', duration: 0.4, ease: 'power3.out' })
 
       wrap.addEventListener('pointerdown', press)
-      // release on window: the drag often ends with the pointer off the slider
+      // release on window (pointer may leave)
       window.addEventListener('pointerup', release)
       window.addEventListener('pointercancel', release)
 
@@ -1657,9 +1624,9 @@ function initCursor() {
 }
 
 function initCompareToggle() {
-  const EASE = 'hazel-ease' // swap here to retune the whole toggle
+  const EASE = 'hazel-ease' // retune toggle here
   const DURATION = 0.5
-  const SWAP = '1.5rem' // vertical throw of the column swap
+  const SWAP = '1.5rem' // column swap throw
 
   document.querySelectorAll('.compare_component').forEach((component) => {
     const buttons = [...component.querySelectorAll('[data-toggle]')]
@@ -1704,7 +1671,7 @@ function initCompareToggle() {
       const onClick = (e) => setStatus(e.currentTarget.getAttribute('data-toggle'), true)
       buttons.forEach((b) => b.addEventListener('click', onClick))
 
-      setStatus('after', false) // default state on load
+      setStatus('after', false) // default on load
 
       return () => {
         buttons.forEach((b) => {
@@ -1772,20 +1739,20 @@ const initHeroIntro = () => {
   const eyebrowWrap = hero.querySelector('.eyebrow_wrap')
   const eyebrowText = hero.querySelector('[data-typewriter]')
   const title = hero.querySelector('.h0')
-  const paragraph = hero.querySelector('.max-w-small')
+  const paragraph = hero.querySelector('p').parentElement
   const buttons = hero.querySelectorAll('.button-group .button-w')
   const image = hero.querySelector('.hero_img')
 
   const pieces = [eyebrowWrap, title, paragraph, ...buttons, image].filter(Boolean)
   if (!pieces.length) return
 
-  // Reduced motion: skip the intro.
+  // reduced motion: skip
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
     gsap.set(pieces, { autoAlpha: 1 })
     return
   }
 
-  // Tunable timing (seconds from sequence start). Eyebrow plays last.
+  // timing (s), eyebrow last
   const T = {
     title: 0.5,
     para: 0.8,
@@ -1803,20 +1770,17 @@ const initHeroIntro = () => {
   const build = () => {
     const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } })
 
-    // title
     if (title) {
       const split = new SplitText(title, { type: 'lines, chars' })
-      highlightFill(title, split, tl, T.title, 0) // hide chars before revealing container (no flash)
+      highlightFill(title, split, tl, T.title, 0) // hide chars first (no flash)
       gsap.set(title, { autoAlpha: 1 })
     }
 
-    // paragraph
     if (paragraph) {
       gsap.set(paragraph, { autoAlpha: 0, y: '1rem' })
       tl.to(paragraph, { autoAlpha: 1, y: 0, duration: T.paraDur }, T.para)
     }
 
-    // buttons, one by one
     if (buttons.length) {
       gsap.set(buttons, { autoAlpha: 0, y: '1rem' })
       tl.to(
@@ -1826,7 +1790,6 @@ const initHeroIntro = () => {
       )
     }
 
-    // hero visual
     if (image) {
       gsap.set(image, { autoAlpha: 0, yPercent: 100, scale: 1.05 })
       tl.to(
@@ -1836,7 +1799,6 @@ const initHeroIntro = () => {
       )
     }
 
-    // eyebrow last
     if (eyebrowWrap) {
       gsap.set(eyebrowWrap, { autoAlpha: 0, y: '0.5rem' })
       tl.to(eyebrowWrap, { autoAlpha: 1, y: 0, duration: T.eyebrowDur }, T.eyebrow)
@@ -1849,7 +1811,7 @@ const initHeroIntro = () => {
     tl.play()
   }
 
-  // Start once fonts + bg image are ready (or the timeout, whichever first).
+  // wait for fonts + bg image
   const heroMedia = document.querySelector('[data-hero-reveal]')?.getAttribute('data-hero-media')
   const decoded = heroMedia
     ? Object.assign(new Image(), { src: heroMedia })
