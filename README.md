@@ -20,9 +20,9 @@ Paste this in **Project Settings > Custom Code > Before </body>**:
 <script>
   (function () {
     var LOCALHOST_URL = [
-      'http://localhost:4012/@vite/client',
-      'http://localhost:4012/src/main.js',
-      'http://localhost:4012/src/gl/embed.js',
+      'https://localhost:4012/@vite/client',
+      'https://localhost:4012/src/main.js',
+      'https://localhost:4012/src/gl/embed.js',
     ]
     // main.js = site JS; gl.js = standalone WebGL bundle (hero/career/fluid embeds),
     // loaded as its own parallel script so GL never blocks or bloats main.js.
