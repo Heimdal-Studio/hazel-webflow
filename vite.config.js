@@ -19,11 +19,14 @@ export default defineConfig(({ command }) => {
       port: 4012,
       cors: '*',
       // Safari blocks http://localhost fetches from the https Webflow site (mixed
-      // content, no localhost exemption) — dev must be https. Certs via mkcert.
-      https: {
-        key: fs.readFileSync('certs/localhost-key.pem'),
-        cert: fs.readFileSync('certs/localhost.pem'),
-      },
+      // content, no localhost exemption) — dev must be https. Certs via mkcert,
+      // local-only (gitignored): never read them during build or Vercel dies.
+      https: isDev
+        ? {
+            key: fs.readFileSync('certs/localhost-key.pem'),
+            cert: fs.readFileSync('certs/localhost.pem'),
+          }
+        : undefined,
       hmr: {
         host: 'localhost',
         protocol: 'wss',
