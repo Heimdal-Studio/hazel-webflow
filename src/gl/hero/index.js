@@ -7,6 +7,7 @@
 //
 // The render core is synced from ../../../hazel-gl (see scripts/sync-gl-cores.mjs).
 import { createHeroGL, DEFAULT_HERO_PARAMS } from "./hero-gl";
+import { gatedLoop } from "../gated-loop";
 
 function readConfig(el) {
   const node = el.querySelector('script[type="application/json"][data-hero-config]');
@@ -39,41 +40,30 @@ function mountHeroReveal(el) {
     "position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none";
   el.prepend(canvas);
 
-  const hero = createHeroGL(canvas);
+  const hero = createHeroGL(canvas, { preserveDrawingBuffer: false });
   if (!hero) return;
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const loopDur = params.loopDurationSeconds || 9;
 
-  const renderAt = (loopProgress, loopTime) => {
-    const r = el.getBoundingClientRect();
-    hero.render(params, {
-      width: Math.max(1, Math.round(r.width * dpr)),
-      height: Math.max(1, Math.round(r.height * dpr)),
-      loopProgress,
-      loopTime,
-      includeBg: params.includeBg,
-    });
-  };
-
   Promise.all([hero.setImageAsync(imageUrl), hero.setMaskAsync(maskUrl)]).then(() => {
     // Play the reveal once on load, then hold it settled while the flow field keeps
     // running: reveal progress caps at 1, but raw elapsed drives the perpetual flow
-    // (the core wraps it into a seamless loop). renderAt reads the rect each frame,
-    // so resizes are handled without a separate listener.
-    const start = performance.now();
-    let raf = 0;
-    const frame = () => {
-      const elapsed = (performance.now() - start) / 1000;
-      renderAt(Math.min(elapsed / loopDur, 1), elapsed);
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    // (the core wraps it into a seamless loop).
+    const loop = gatedLoop(el, dpr, (elapsed, size) => {
+      hero.render(params, {
+        width: size.width,
+        height: size.height,
+        loopProgress: Math.min(elapsed / loopDur, 1),
+        loopTime: elapsed,
+        includeBg: params.includeBg,
+      });
+    });
 
     window.addEventListener(
       "pagehide",
       () => {
-        if (raf) cancelAnimationFrame(raf);
+        loop.stop();
         hero.dispose();
       },
       { once: true },

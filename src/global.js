@@ -565,10 +565,12 @@ function initMarqueeScrollDirection(container = document) {
 
     marquee.setAttribute('data-marquee-status', 'normal')
 
-    ScrollTrigger.create({
+    const visibility = ScrollTrigger.create({
       trigger: marquee,
       start: 'top bottom',
       end: 'bottom top',
+      // repeat:-1 tween otherwise runs forever; only tick it while on screen
+      onToggle: (self) => (self.isActive ? animation.play() : animation.pause()),
       onUpdate: (self) => {
         const isInverted = self.direction === 1
         const currentDirection = isInverted ? -marqueeDirectionAttr : marqueeDirectionAttr
@@ -577,6 +579,7 @@ function initMarqueeScrollDirection(container = document) {
         marquee.setAttribute('data-marquee-status', isInverted ? 'normal' : 'inverted')
       },
     })
+    if (!visibility.isActive) animation.pause()
 
     const tl = gsap.timeline({
       scrollTrigger: {
@@ -1566,13 +1569,26 @@ function initCursor() {
 
         lastY = targetY
 
-        rafId = requestAnimationFrame(animate)
+        // Idle-stop: once the follower has settled, park the loop instead of
+        // writing transforms every frame forever; mousemove/hover wakes it.
+        const settled =
+          Math.abs(dx) < 0.1 &&
+          Math.abs(dy) < 0.1 &&
+          Math.abs(velocityX) < 0.01 &&
+          Math.abs(velocityY) < 0.01 &&
+          Math.abs(rotation) < 0.1 &&
+          Math.abs(currentOpacity - targetOpacity) < 0.005
+        rafId = settled ? 0 : requestAnimationFrame(animate)
+      }
+      const wake = () => {
+        if (!rafId) rafId = requestAnimationFrame(animate)
       }
       animate()
 
       const onMove = (e) => {
         targetX = e.clientX
         targetY = e.clientY
+        wake()
       }
       document.addEventListener('mousemove', onMove)
 
@@ -1586,9 +1602,11 @@ function initCursor() {
           if (cursorText && cursorTextElement) {
             cursorTextElement.textContent = cursorText
           }
+          wake()
         }
         const onLeave = () => {
           targetOpacity = 0
+          wake()
         }
         element.addEventListener('mouseenter', onEnter)
         element.addEventListener('mouseleave', onLeave)

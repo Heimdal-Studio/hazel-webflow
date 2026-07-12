@@ -3,8 +3,6 @@
 // object + a timing/size options object, so it has no Toolcraft or React deps.
 import { FRAGMENT_SHADER, VERTEX_SHADER } from "./hero-shader";
 
-export type HeroMaskStyle = "fade" | "wipe" | "static";
-
 export type HeroParams = {
   angle: number;
   easing: string;
@@ -14,10 +12,6 @@ export type HeroParams = {
   zoomFrom: number; // background scale at the start of the reveal (top-left anchored)
   zoomTo: number; // settled background scale after zoomDuration
   zoomDuration: number; // seconds the reveal zoom takes (independent of the sweep)
-  maskStyle: HeroMaskStyle;
-  maskStart: number; // seconds into the loop where the mask reveal begins
-  maskDuration: number; // seconds the mask reveal takes
-  maskEdge: number;
   motion: boolean;
   waveAmp: number;
   noiseScale: number;
@@ -44,10 +38,6 @@ export const DEFAULT_HERO_PARAMS: HeroParams = {
   zoomFrom: 0.5,
   zoomTo: 1,
   zoomDuration: 3,
-  maskStyle: "static",
-  maskStart: 2,
-  maskDuration: 3,
-  maskEdge: 0.02,
   motion: true,
   waveAmp: 0.02,
   noiseScale: 2.4,
@@ -204,9 +194,7 @@ export function heroCropWindow(
 export type HeroGL = {
   canvas: HTMLCanvasElement;
   setImage: (url: string) => void;
-  setMask: (url: string) => void;
   setImageAsync: (url: string) => Promise<void>;
-  setMaskAsync: (url: string) => Promise<void>;
   render: (params: HeroParams, options: HeroRenderOptions) => void;
   /** Current crop rect for the given render resolution, or null if no image loaded. */
   cropWindow: (resW: number, resH: number) => HeroCropWindow | null;
@@ -214,10 +202,16 @@ export type HeroGL = {
 };
 
 /** Create a hero renderer on a canvas, or null if WebGL2 is unavailable. */
-export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
+// preserveDrawingBuffer defaults true for the tool's export flow (toBlob /
+// captureStream read the canvas); the Webflow runtime passes false — Safari
+// pays a real compositing cost for a persistent back buffer.
+export function createHeroGL(
+  canvas: HTMLCanvasElement,
+  { preserveDrawingBuffer = true }: { preserveDrawingBuffer?: boolean } = {},
+): HeroGL | null {
   const gl = canvas.getContext("webgl2", {
     antialias: true,
-    preserveDrawingBuffer: true,
+    preserveDrawingBuffer,
     premultipliedAlpha: false,
   });
   if (!gl) return null;
@@ -229,12 +223,7 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     resolution: u("uResolution"),
     imageSize: u("uImageSize"),
     hasImage: u("uHasImage"),
-    hasMask: u("uHasMask"),
-    maskSize: u("uMaskSize"),
     progress: u("uProgress"),
-    maskPhase: u("uMaskPhase"),
-    maskEdge: u("uMaskEdge"),
-    maskMode: u("uMaskMode"),
     angle: u("uAngle"),
     softness: u("uSoftness"),
     dissolveBlur: u("uDissolveBlur"),
@@ -255,7 +244,6 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     includeBg: u("uIncludeBg"),
   };
   const source = makeSlot(gl, 0, u("uTexture"));
-  const mask = makeSlot(gl, 1, u("uMask"));
   let lastZoom = 1; // last zoomAmt pushed to the shader, for cropWindow()
 
   const render = (params: HeroParams, { width, height, loopProgress, loopTime, includeBg }: HeroRenderOptions) => {
@@ -267,11 +255,8 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    // Act 1 (soft bloom) completes at maskStart; act 2 (mask reveal) runs over maskDuration.
     const dur = Math.max(0.1, params.loopDurationSeconds || 9);
     const revealFrac = clamp(params.revealDuration / dur, 0.02, 1);
-    const startFrac = clamp(params.maskStart / dur, 0.02, 0.95);
-    const durFrac = clamp(params.maskDuration / dur, 0.02, 1);
     const revealProg = ease(clamp(loopProgress / revealFrac, 0, 1), params.easing);
     const zoomFrac = clamp((params.zoomDuration || params.revealDuration) / dur, 0.02, 1);
     const zoomProg = ease(clamp(loopProgress / zoomFrac, 0, 1), params.easing);
@@ -279,12 +264,7 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
     gl.uniform2f(loc.resolution, width, height);
     gl.uniform2f(loc.imageSize, source.size[0], source.size[1]);
     gl.uniform1f(loc.hasImage, source.size[0] > 0 ? 1 : 0);
-    gl.uniform1f(loc.hasMask, mask.size[0] > 0 ? 1 : 0);
-    gl.uniform2f(loc.maskSize, mask.size[0], mask.size[1]);
     gl.uniform1f(loc.progress, revealProg);
-    gl.uniform1f(loc.maskPhase, ease(clamp((loopProgress - startFrac) / durFrac, 0, 1), params.easing));
-    gl.uniform1f(loc.maskEdge, params.maskEdge);
-    gl.uniform1f(loc.maskMode, params.maskStyle === "wipe" ? 1 : params.maskStyle === "static" ? 2 : 0);
     gl.uniform1f(loc.angle, params.angle);
     gl.uniform1f(loc.softness, params.softness);
     gl.uniform1f(loc.dissolveBlur, params.blur);
@@ -320,15 +300,12 @@ export function createHeroGL(canvas: HTMLCanvasElement): HeroGL | null {
   return {
     canvas,
     setImage: source.sync,
-    setMask: mask.sync,
     setImageAsync: source.setAsync,
-    setMaskAsync: mask.setAsync,
     render,
     cropWindow: (resW: number, resH: number) =>
       source.size[0] > 0 ? heroCropWindow(source.size[0], source.size[1], resW, resH, lastZoom) : null,
     dispose: () => {
       source.dispose();
-      mask.dispose();
       gl.deleteProgram(program);
     },
   };

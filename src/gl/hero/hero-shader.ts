@@ -1,11 +1,9 @@
 // WebGL2 (GLSL ES 3.00) hero reveal shader.
 //
-// A cover-fit warm gradient image dissolves into a cream background through an
-// uploadable grayscale MASK (default references/home-h-mask.jpg: white = keep the
-// image, black = dissolve to background; mapped down the frame so the dissolve
-// "lives at the bottom"). The dissolve is SOFT: the mask is used as a smooth alpha
-// (no hard threshold) and the dissolving zone is blurred, so the reveal reads as a
-// blur that expands rather than a razor edge.
+// A cover-fit warm gradient image soft-bloom reveals in over a cream background.
+// The dissolve-to-background mask that used to live here now lives in CSS (a mask
+// on the DOM element in the Webflow embed), so this shader only owns the bloom
+// reveal, the liquid flow warp, edge wave, and grain.
 //
 // snoise + mod289/permute and getCoverUv are reused verbatim from
 // references/existing-heroShader.js. Everything else is new.
@@ -29,14 +27,8 @@ uniform vec2  uResolution;
 uniform vec2  uImageSize;
 uniform sampler2D uTexture;    // source (revealed) image
 uniform float uHasImage;
-uniform sampler2D uMask;       // dissolve mask (grayscale; white = keep)
-uniform float uHasMask;
-uniform vec2  uMaskSize;       // mask pixels (for width-100% / height-auto fit)
 
 uniform float uProgress;       // act 1: 0..1 soft bloom reveal (from timeline)
-uniform float uMaskPhase;      // act 2: 0..1 mask reveal-in
-uniform float uMaskEdge;       // act 2: razor front width (lower = sharper scanline edges)
-uniform float uMaskMode;       // act 2 style: 0 = fade (gradient), 1 = wipe (razor front)
 uniform float uAngle;          // reveal direction, degrees (135 = TL->BR)
 uniform float uSoftness;       // width of the soft expanding reveal edge
 uniform float uDissolveBlur;   // blur (px) applied where the image dissolves
@@ -150,35 +142,9 @@ void main() {
   float front = uProgress * (1.0 + 2.0 * soft) - soft;
   float bloom = 1.0 - smoothstep(front - soft, front + soft, field);
 
-  // Dissolve mask (white = keep image, black = background), sized width-100% /
-  // height-auto and anchored to the bottom. Above the mask band the sampler clamps
-  // to the mask's top edge (white = keep), so the top of the image is untouched.
-  float maskBandH = (uMaskSize.x > 0.0)
-    ? (uResolution.x * uMaskSize.y) / (uResolution.y * uMaskSize.x)
-    : 1.0;
-  vec2 maskUv = vec2(uv.x, uv.y / max(maskBandH, 1e-4));
-  float maskKeep = uHasMask > 0.5
-    ? dot(texture(uMask, maskUv).rgb, vec3(0.299, 0.587, 0.114))
-    : 1.0;
-
-  // Act 2 — the mask reveals IN, settling on the ORIGINAL mask dissolve (end state
-  // == the uploaded mask). Act 1 shows the FULL image (no mask). Two styles:
-  //   fade : crossfade the whole mask in (uMaskPhase 0->1).
-  //   wipe : a razor-sharp front sweeps from the darkest mask region upward, leaving
-  //          the original mask behind it.
-  float maskApplied;
-  if (uMaskMode > 1.5) {
-    maskApplied = maskKeep; // static: mask applied, no reveal animation
-  } else if (uMaskMode < 0.5) {
-    maskApplied = mix(1.0, maskKeep, uMaskPhase); // fade
-  } else {
-    float sharp = max(uMaskEdge, 0.001);
-    float sweepLevel = mix(-2.0 * sharp, 1.0 + 2.0 * sharp, uMaskPhase);
-    float swept = 1.0 - smoothstep(sweepLevel - sharp, sweepLevel + sharp, maskKeep);
-    maskApplied = mix(1.0, maskKeep, swept); // wipe
-  }
-
-  float keep = clamp(bloom * maskApplied, 0.0, 1.0);
+  // The dissolve-to-background mask now lives in CSS (a mask on the DOM element),
+  // not in this shader — the bloom reveal is the whole story here.
+  float keep = clamp(bloom, 0.0, 1.0);
 
   // Reveal zoom — scale the source up from the top-left (the first-revealed corner)
   // over the whole reveal, so the gradient colors bloom outward while it wipes in
@@ -230,8 +196,9 @@ void main() {
   disp *= smoothstep(0.0, 0.22, min(eb.x, eb.y));
   vec2 flowUv = coverUv + disp;
 
-  // Blur rides the soft act-1 edge and fades out as the razor act-2 settles.
-  float blurPx = uDissolveBlur * (1.0 - bloom) * (1.0 - uMaskPhase);
+  // Blur rides the soft act-1 edge and settles to a floor so the liquid flow warp
+  // itself reads soft, not crisp, once the reveal completes.
+  float blurPx = max(uDissolveBlur * (1.0 - bloom), 12.0);
   vec3 image = mix(uBgColor, sampleSource(flowUv, blurPx), uHasImage);
 
   vec3 composite = mix(uBgColor, image, keep);

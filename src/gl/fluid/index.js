@@ -7,6 +7,7 @@
 //
 // The render core is synced from ../../../hazel-gl (see scripts/sync-gl-cores.mjs).
 import { createFluidGL, DEFAULT_FLUID_PARAMS } from "./fluid-gl";
+import { gatedLoop } from "../gated-loop";
 
 // Legacy configs (pre glow-dots, 2026-07-06) carried ink/color2/color3 instead
 // of a glows[] array. Map them onto the classic fixed anchors so published
@@ -55,35 +56,28 @@ function mountFluidBg(el) {
     "position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none";
   el.prepend(canvas);
 
-  const fluid = createFluidGL(canvas);
+  const fluid = createFluidGL(canvas, { preserveDrawingBuffer: false });
   if (!fluid) return;
 
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // 1.5 cap (vs 2 elsewhere): the effect is a soft gradient, the extra Retina
+  // pixels are invisible but cost ~78% more fill.
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   const loopDur = loopDurationSeconds || 10;
 
-  // Perpetual seamless loop; the rect is read each frame, so resizes are
-  // handled without a separate listener.
-  const start = performance.now();
-  let raf = 0;
-  const frame = () => {
-    const elapsed = (performance.now() - start) / 1000;
-    const t = (elapsed % loopDur) / loopDur;
-    const r = el.getBoundingClientRect();
+  const loop = gatedLoop(el, dpr, (elapsed, size) => {
     fluid.render(params, {
-      width: Math.max(1, Math.round(r.width * dpr)),
-      height: Math.max(1, Math.round(r.height * dpr)),
-      loopProgress: t,
+      width: size.width,
+      height: size.height,
+      loopProgress: (elapsed % loopDur) / loopDur,
       loopTime: elapsed % loopDur,
       includeBg: true,
     });
-    raf = requestAnimationFrame(frame);
-  };
-  raf = requestAnimationFrame(frame);
+  });
 
   window.addEventListener(
     "pagehide",
     () => {
-      if (raf) cancelAnimationFrame(raf);
+      loop.stop();
       fluid.dispose();
     },
     { once: true },

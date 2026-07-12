@@ -7,6 +7,7 @@
 //
 // The render core is synced from ../../../hazel-gl (see scripts/sync-gl-cores.mjs).
 import { createCareerGL, DEFAULT_CAREER_PARAMS } from "./career-gl";
+import { gatedLoop } from "../gated-loop";
 
 function readConfig(el) {
   const node = el.querySelector('script[type="application/json"][data-career-config]');
@@ -37,7 +38,7 @@ function mountCareerHero(el) {
     "position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none";
   el.prepend(canvas);
 
-  const career = createCareerGL(canvas);
+  const career = createCareerGL(canvas, { preserveDrawingBuffer: false });
   if (!career) return;
 
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -45,38 +46,25 @@ function mountCareerHero(el) {
   // Line density is authored in tool-canvas pixels; keep the tuned reference width.
   const designWidth = canvasWidth || 1920;
 
-  const renderAt = (loopProgress, loopTime) => {
-    const r = el.getBoundingClientRect();
-    career.render(params, {
-      width: Math.max(1, Math.round(r.width * dpr)),
-      height: Math.max(1, Math.round(r.height * dpr)),
-      canvasWidth: designWidth,
-      loopProgress,
-      loopTime,
-      includeBg: true,
-    });
-  };
-
   const ready = [];
   if (photoUrl) ready.push(career.setImageAsync(photoUrl));
   if (maskUrl) ready.push(career.setMaskAsync(maskUrl));
   Promise.all(ready).then(() => {
-    // Perpetual seamless loop; renderAt reads the rect each frame, so resizes
-    // are handled without a separate listener.
-    const start = performance.now();
-    let raf = 0;
-    const frame = () => {
-      const elapsed = (performance.now() - start) / 1000;
-      const t = (elapsed % loopDur) / loopDur;
-      renderAt(t, elapsed % loopDur);
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    const loop = gatedLoop(el, dpr, (elapsed, size) => {
+      career.render(params, {
+        width: size.width,
+        height: size.height,
+        canvasWidth: designWidth,
+        loopProgress: (elapsed % loopDur) / loopDur,
+        loopTime: elapsed % loopDur,
+        includeBg: true,
+      });
+    });
 
     window.addEventListener(
       "pagehide",
       () => {
-        if (raf) cancelAnimationFrame(raf);
+        loop.stop();
         career.dispose();
       },
       { once: true },

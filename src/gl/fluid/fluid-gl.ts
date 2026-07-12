@@ -104,10 +104,16 @@ export type FluidGL = {
 };
 
 /** Create a Fluid BGs renderer on a canvas, or null if WebGL2 is unavailable. */
-export function createFluidGL(canvas: HTMLCanvasElement): FluidGL | null {
+// preserveDrawingBuffer defaults true for the tool's export flow (toBlob /
+// captureStream read the canvas); the Webflow runtime passes false — Safari
+// pays a real compositing cost for a persistent back buffer.
+export function createFluidGL(
+  canvas: HTMLCanvasElement,
+  { preserveDrawingBuffer = true }: { preserveDrawingBuffer?: boolean } = {},
+): FluidGL | null {
   const gl = canvas.getContext("webgl2", {
     antialias: true,
-    preserveDrawingBuffer: true,
+    preserveDrawingBuffer,
     premultipliedAlpha: false,
   });
   if (!gl) return null;
