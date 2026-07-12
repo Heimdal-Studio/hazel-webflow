@@ -1194,7 +1194,6 @@ const initHeroParallax = () => {
     },
   })
 
-  gsap.set('[data-hero-bg]', { willChange: 'transform', force3D: true })
   tl.fromTo('[data-hero-bg]', { y: '0vh' }, { y: '30vh' })
 }
 
@@ -1746,11 +1745,6 @@ const initParallax = (container = document) => {
       if (!parallaxImg) return
 
       const yPercent = parallaxImg.classList.contains('parallax-large') ? 24 : 14
-
-      // Safari re-rasterizes a clipped (overflow+radius) image on every scroll
-      // frame unless both the mover and its clipping parent are composited.
-      gsap.set(parallaxImg, { willChange: 'transform', force3D: true })
-      gsap.set(parallaxParent, { willChange: 'transform' })
 
       gsap
         .timeline({
