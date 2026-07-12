@@ -1,7 +1,5 @@
 import { initHeroShader } from '../shaders/heroShader'
 
-CustomEase.create('main', 'M0,0 C0.649,0 0,1 1,1 ')
-
 const initHomeHero = () => {
   // const tl = gsap.timeline({ defaults: { duration: 2, ease: 'power3.out' } })
   // tl.fromTo(
@@ -91,6 +89,7 @@ const initRace = () => {
 }
 
 export function initHome() {
+  CustomEase.create('main', 'M0,0 C0.649,0 0,1 1,1 ')
   // initHeroShader()
   // initIconCards()
   initRace()

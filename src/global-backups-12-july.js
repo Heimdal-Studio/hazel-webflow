@@ -1,9 +1,12 @@
 import { MQ } from './utils/breakpoints.js'
 import { splitReveal } from './utils/splitReveal.js'
 
+CustomEase.create('hazel-ease', 'M0,0 C0.0846,-0.0003 0,1 1,1')
+
 function initTextAnimations() {
-  const reveal = (el) => {
+  document.querySelectorAll('[data-split]').forEach((el) => {
     const isHero = el.closest('[data-hero]')
+
     splitReveal(
       el,
       isHero
@@ -16,19 +19,6 @@ function initTextAnimations() {
             },
           }
     )
-  }
-
-  document.querySelectorAll('[data-split]').forEach((el) => {
-    // Defer the split (a forced reflow) until the element nears the viewport, so
-    // off-screen text never measures at load. By scroll time fonts have swapped
-    // in too, so it splits once instead of split + font re-split. Elements in
-    // view at load fire onEnter immediately on refresh — same timing as before.
-    ScrollTrigger.create({
-      trigger: el,
-      start: 'top bottom',
-      once: true,
-      onEnter: () => reveal(el),
-    })
   })
 }
 
@@ -1370,9 +1360,7 @@ const TW_SPEEDS = { slow: 0.14, normal: 0.06, fast: 0.018 }
 function typewriterPrep(target) {
   const speedKey = target.getAttribute('data-typewriter-speed') || 'normal'
   const stagger = TW_SPEEDS[speedKey] ?? TW_SPEEDS.normal
-  // aria:'hidden' — SplitText's default aria-label is prohibited on the generic
-  // eyebrow <div>; these are decorative kickers, so hide from AT instead.
-  const split = new SplitText(target, { type: 'chars', charsClass: 'tw-char', aria: 'hidden' })
+  const split = new SplitText(target, { type: 'chars', charsClass: 'tw-char' })
   gsap.set(split.chars, { autoAlpha: 0 })
   return {
     split,
@@ -1838,7 +1826,6 @@ const initHeroIntro = () => {
 }
 
 export function initGlobal() {
-  CustomEase.create('hazel-ease', 'M0,0 C0.0846,-0.0003 0,1 1,1')
   initTextAnimations()
   initTitleAnimation()
   initMarqueeScrollDirection()

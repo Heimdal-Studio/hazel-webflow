@@ -94,9 +94,28 @@ import { initPainterly } from './painterly-reveal/index.js'
   // =============================================
   // START
   // =============================================
-  try {
-    init()
-  } catch (error) {
-    console.error('[Main] Failed to initialize:', error)
+  function start() {
+    try {
+      init()
+    } catch (error) {
+      console.error('[Main] Failed to initialize:', error)
+    }
   }
+
+  // GSAP + its plugins load from defer'd CDN <script>s, but this bundle is
+  // injected async by the loader and can execute first (warm cache). Touching
+  // ScrollTrigger/SplitText/CustomEase before they exist throws — wait for them.
+  function whenPluginsReady(cb) {
+    const ready = () => window.ScrollTrigger && window.SplitText && window.CustomEase
+    if (ready()) return cb()
+    let tries = 0
+    const id = setInterval(() => {
+      if (ready() || ++tries > 100) {
+        clearInterval(id)
+        cb() // fire anyway after ~5s so a blocked CDN degrades instead of hanging
+      }
+    }, 50)
+  }
+
+  whenPluginsReady(start)
 })()
