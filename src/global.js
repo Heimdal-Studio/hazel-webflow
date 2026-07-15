@@ -292,9 +292,11 @@ function initLineRevealTestimonials() {
       item,
       image: item.querySelector('[data-testimonial-img]'),
 
+      // live Designer markup has no [data-testimonial-text] attr on the quote — class-match like .testimonial-lines__name
       splitTargets: [
-        item.querySelector('[data-testimonial-text]'),
-        ...item.querySelectorAll('[data-testimonial-split], .testimonial-lines__name'),
+        ...item.querySelectorAll(
+          '[data-testimonial-text], [data-testimonial-split], .testimonial-lines__h, .testimonial-lines__name'
+        ),
       ].filter(Boolean),
 
       splitInstances: [],
