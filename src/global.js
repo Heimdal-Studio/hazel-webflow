@@ -1,5 +1,6 @@
 import { MQ } from './utils/breakpoints.js'
 import { splitReveal } from './utils/splitReveal.js'
+import { requestScrollRefresh } from './utils/scroll-refresh.js'
 
 function initTextAnimations() {
   const reveal = (el) => {
@@ -31,380 +32,6 @@ function initTextAnimations() {
     })
   })
 }
-
-/*
-const initNumbersAnimation = () => {
-  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const initFlag = 'data-odometer-initialized'
-  const activeTweens = new WeakMap()
-
-  // Configuration
-  const defaults = {
-    duration: 1,
-    ease: 'power3.out',
-    elementStagger: 0.1,
-    digitStagger: 0.04,
-    revealDuration: 1,
-    revealEase: 'power2.out',
-    triggerStart: 'top 100%',
-    staggerOrder: 'left',
-    digitCycles: 2,
-  }
-
-  // Scroll-triggered groups
-  document.querySelectorAll('[data-odometer-group]').forEach((group) => {
-    if (group.hasAttribute(initFlag)) return
-    group.setAttribute(initFlag, '')
-
-    const elements = Array.from(group.querySelectorAll('[data-odometer-element]'))
-    if (!elements.length || prefersReducedMotion) return
-
-    const staggerOrder = group.getAttribute('data-odometer-stagger-order') || defaults.staggerOrder
-    const triggerStart = group.getAttribute('data-odometer-trigger-start') || defaults.triggerStart
-    const elementStagger =
-      parseFloat(group.getAttribute('data-odometer-stagger')) || defaults.elementStagger
-
-    const elementData = elements.map((el) => {
-      const originalText = el.textContent.trim()
-      const hasExplicitStart = el.hasAttribute('data-odometer-start')
-      const startValue = parseFloat(el.getAttribute('data-odometer-start')) || 0
-      const duration = parseFloat(el.getAttribute('data-odometer-duration')) || defaults.duration
-      const step = getLineHeightRatio(el)
-
-      let segments = parseSegments(originalText)
-      segments = mapStartDigits(segments, startValue)
-      segments = markHiddenSegments(segments, startValue)
-
-      const grow = shouldGrow(el, hasExplicitStart, startValue, segments)
-      const { rollers, revealEls } = buildRollerDOM(el, segments, step, grow)
-
-      const fontSize = parseFloat(getComputedStyle(el).fontSize)
-      const revealData = revealEls.map((revealEl) => {
-        const widthEm = revealEl.offsetWidth / fontSize
-        gsap.set(revealEl, { width: 0, overflow: 'hidden' })
-        return { el: revealEl, widthEm }
-      })
-
-      return { el, rollers, duration, step, revealData, originalText }
-    })
-
-    const ordered = applyStaggerOrder(elementData, staggerOrder)
-
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: group,
-        start: triggerStart,
-        once: true,
-      },
-      onComplete() {
-        elementData.forEach(({ el, originalText, step }) => {
-          cleanupElement(el, originalText)
-        })
-      },
-    })
-
-    ordered.forEach((data, orderIdx) => {
-      const { rollers, duration, step, revealData } = data
-      const offset = orderIdx * elementStagger
-
-      revealData.forEach(({ el, widthEm }) => {
-        tl.to(
-          el,
-          {
-            width: widthEm + 'em',
-            opacity: 1,
-            duration: defaults.revealDuration,
-            ease: defaults.revealEase,
-          },
-          offset
-        )
-      })
-
-      rollers.forEach(({ roller, targetPos }, digitIdx) => {
-        const reversedIdx = rollers.length - 1 - digitIdx
-        tl.to(
-          roller,
-          {
-            y: -targetPos * step + 'em',
-            duration,
-            ease: defaults.ease,
-            force3D: true,
-          },
-          offset + reversedIdx * defaults.digitStagger
-        )
-      })
-    })
-  })
-
-  // Programmatic update (optional add-on)
-  return function updateOdometer(el, newText, options = {}) {
-    const currentText = el.textContent.trim()
-    if (currentText === newText) return
-
-    const duration = options.duration || defaults.duration
-    const ease = options.ease || defaults.ease
-    const step = getLineHeightRatio(el)
-
-    // Kill any running animation and clear its inline style locks
-    const existing = activeTweens.get(el)
-    if (existing) {
-      existing.kill()
-      gsap.set(el, { clearProps: 'width,overflow' })
-    }
-
-    // Measure current width before rebuilding (in em for responsive scaling)
-    const fontSize = parseFloat(getComputedStyle(el).fontSize)
-    const oldWidthEm = el.getBoundingClientRect().width / fontSize
-
-    // Parse current text as start, new text as end
-    const startSegments = parseSegments(currentText)
-    const startDigitsStr = startSegments
-      .filter((s) => s.type === 'digit')
-      .map((s) => s.char)
-      .join('')
-    const startValue = parseInt(startDigitsStr, 10) || 0
-
-    let segments = parseSegments(newText)
-    segments = mapStartDigits(segments, startValue)
-    segments = markHiddenSegments(segments, startValue)
-    const { rollers, revealEls } = buildRollerDOM(el, segments, step, true)
-
-    // Measure new natural width (in em)
-    const newWidthEm = el.getBoundingClientRect().width / fontSize
-    const widthChanged = Math.abs(oldWidthEm - newWidthEm) > 0.01
-
-    // Lock to old width for smooth transition
-    if (widthChanged) {
-      gsap.set(el, { width: oldWidthEm + 'em', overflow: 'hidden' })
-    }
-
-    const tl = gsap.timeline({
-      onComplete() {
-        cleanupElement(el, newText)
-        activeTweens.delete(el)
-      },
-    })
-    activeTweens.set(el, tl)
-
-    // Animate element width
-    if (widthChanged) {
-      tl.to(
-        el,
-        {
-          width: newWidthEm + 'em',
-          duration: defaults.revealDuration,
-          ease: defaults.revealEase,
-        },
-        0
-      )
-    }
-
-    // Fade in hidden statics
-    revealEls.forEach((revealEl) => {
-      if (revealEl.getAttribute('data-odometer-part') === 'static') {
-        tl.to(revealEl, { opacity: 1, duration: 0.2 }, 0)
-      }
-    })
-
-    // Roll digits
-    rollers.forEach(({ roller, targetPos }, digitIdx) => {
-      const reversedIdx = rollers.length - 1 - digitIdx
-      tl.to(
-        roller,
-        {
-          y: -targetPos * step + 'em',
-          duration,
-          ease,
-          force3D: true,
-        },
-        reversedIdx * defaults.digitStagger
-      )
-    })
-  }
-
-  // Helpers
-  function getLineHeightRatio(el) {
-    const cs = getComputedStyle(el)
-    const lh = cs.lineHeight
-    if (lh === 'normal') return 1.2
-    return parseFloat(lh) / parseFloat(cs.fontSize)
-  }
-
-  function parseSegments(text) {
-    return [...text].map((char) => ({
-      type: /\d/.test(char) ? 'digit' : 'static',
-      char,
-    }))
-  }
-
-  function mapStartDigits(segments, startValue) {
-    const digitSlots = segments.filter((s) => s.type === 'digit')
-    const padded = String(Math.floor(Math.abs(startValue)))
-      .padStart(digitSlots.length, '0')
-      .slice(-digitSlots.length)
-    let di = 0
-    return segments.map((s) =>
-      s.type === 'digit' ? { ...s, startDigit: parseInt(padded[di++], 10) } : s
-    )
-  }
-
-  function markHiddenSegments(segments, startValue) {
-    const totalDigits = segments.filter((s) => s.type === 'digit').length
-    const absStart = Math.floor(Math.abs(startValue))
-    const startDigitCount = absStart === 0 ? 1 : String(absStart).length
-    const leadingZeros = Math.max(0, totalDigits - startDigitCount)
-    if (leadingZeros === 0) return segments
-    let digitsSeen = 0
-    let firstDigitSeen = false
-    let prevDigitHidden = false
-    return segments.map((seg) => {
-      if (seg.type === 'digit') {
-        firstDigitSeen = true
-        const hidden = digitsSeen < leadingZeros
-        prevDigitHidden = hidden
-        digitsSeen++
-        return { ...seg, hidden }
-      }
-      const hidden = firstDigitSeen && prevDigitHidden
-      return { ...seg, hidden }
-    })
-  }
-
-  function shouldGrow(el, hasExplicitStart, startValue, segments) {
-    if (el.hasAttribute('data-odometer-grow')) {
-      return el.getAttribute('data-odometer-grow') !== 'false'
-    }
-    if (!hasExplicitStart) return false
-    const absStart = Math.floor(Math.abs(startValue))
-    const startDigitCount = absStart === 0 ? 1 : String(absStart).length
-    const endDigitCount = segments.filter((s) => s.type === 'digit').length
-    return startDigitCount < endDigitCount
-  }
-
-  function buildRollerDOM(el, segments, step, grow) {
-    el.innerHTML = ''
-    el.style.height = ''
-    const rollers = []
-    const revealEls = []
-    const totalCells = 10 * defaults.digitCycles
-    segments.forEach((seg) => {
-      if (seg.type === 'static') {
-        const span = document.createElement('span')
-        span.setAttribute('data-odometer-part', 'static')
-        span.style.height = step + 'em'
-        span.style.lineHeight = step
-        span.textContent = seg.char
-        el.appendChild(span)
-        if (grow && seg.hidden) {
-          gsap.set(span, { opacity: 0 })
-          revealEls.push(span)
-        }
-        return
-      }
-      const mask = document.createElement('span')
-      mask.setAttribute('data-odometer-part', 'mask')
-      mask.style.height = step + 'em'
-      mask.style.lineHeight = step
-      const roller = document.createElement('span')
-      roller.setAttribute('data-odometer-part', 'roller')
-      roller.style.lineHeight = step
-
-      const digits = []
-      for (let d = 0; d < totalCells; d++) {
-        digits.push(d % 10)
-      }
-      roller.textContent = digits.join('\n')
-      mask.appendChild(roller)
-      el.appendChild(mask)
-      const startDigit = seg.startDigit || 0
-      const isReveal = grow && seg.hidden
-      gsap.set(roller, { y: isReveal ? step + 'em' : -startDigit * step + 'em' })
-      const endDigit = parseInt(seg.char, 10)
-      const targetPos = endDigit > startDigit ? endDigit : 10 + endDigit
-      rollers.push({ roller, targetPos })
-      if (isReveal) revealEls.push(mask)
-    })
-    return { rollers, revealEls }
-  }
-
-  function cleanupElement(el, originalText) {
-    el.style.overflow = ''
-    el.style.height = ''
-
-    // Remove rollers, set final digit, clear inline bloat (but preserve width)
-    const digits = [...originalText].filter((c) => /\d/.test(c))
-    let di = 0
-
-    el.querySelectorAll('[data-odometer-part="mask"]').forEach((mask) => {
-      const roller = mask.querySelector('[data-odometer-part="roller"]')
-      if (roller) roller.remove()
-      mask.textContent = digits[di++] || ''
-      mask.style.opacity = ''
-      mask.style.overflow = ''
-    })
-
-    el.querySelectorAll('[data-odometer-part="static"]').forEach((stat) => {
-      stat.style.opacity = ''
-    })
-  }
-
-  function recalcOnResize() {
-    document.querySelectorAll('[data-odometer-element]').forEach((el) => {
-      // Force-complete any running programmatic animation
-      const running = activeTweens.get(el)
-      if (running) {
-        running.progress(1)
-        activeTweens.delete(el)
-      }
-
-      const hasRollers = el.querySelector('[data-odometer-part="roller"]')
-
-      if (hasRollers) {
-        // Pre-triggered: recalculate step-based inline styles
-        const step = getLineHeightRatio(el)
-        el.querySelectorAll('[data-odometer-part="mask"]').forEach((mask) => {
-          mask.style.height = step + 'em'
-          mask.style.lineHeight = step
-        })
-        el.querySelectorAll('[data-odometer-part="roller"]').forEach((roller) => {
-          roller.style.lineHeight = step
-        })
-        el.querySelectorAll('[data-odometer-part="static"]').forEach((stat) => {
-          stat.style.lineHeight = step
-        })
-      }
-      // Completed elements: width is em-based, scales automatically, don't touch
-    })
-    ScrollTrigger.refresh()
-  }
-
-  let resizeTimer
-  let lastWidth = window.innerWidth
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer)
-    resizeTimer = setTimeout(() => {
-      if (window.innerWidth === lastWidth) return
-      lastWidth = window.innerWidth
-      recalcOnResize()
-    }, 250)
-  })
-
-  function applyStaggerOrder(items, order) {
-    const arr = [...items]
-    if (order === 'right') return arr.reverse()
-    if (order === 'random') return shuffleArray(arr)
-    return arr
-  }
-
-  function shuffleArray(arr) {
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1))
-      ;[arr[i], arr[j]] = [arr[j], arr[i]]
-    }
-    return arr
-  }
-}
-*/
 
 const initNumbersAnimation2 = () => {
   const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -565,6 +192,7 @@ function initMarqueeScrollDirection(container = document) {
 
     marquee.setAttribute('data-marquee-status', 'normal')
 
+    let lastDirection = 0
     const visibility = ScrollTrigger.create({
       trigger: marquee,
       start: 'top bottom',
@@ -572,6 +200,10 @@ function initMarqueeScrollDirection(container = document) {
       // repeat:-1 tween otherwise runs forever; only tick it while on screen
       onToggle: (self) => (self.isActive ? animation.play() : animation.pause()),
       onUpdate: (self) => {
+        // fires every scroll frame; only touch the DOM on direction change
+        if (self.direction === lastDirection) return
+        lastDirection = self.direction
+
         const isInverted = self.direction === 1
         const currentDirection = isInverted ? -marqueeDirectionAttr : marqueeDirectionAttr
 
@@ -934,9 +566,9 @@ const initFaqs = () => {
         const tl = gsap.timeline({
           paused: true,
           defaults: { duration: 0.45, ease: 'power2.inOut' },
-          onComplete: () => (typeof ScrollTrigger !== 'undefined' ? ScrollTrigger.refresh() : null),
-          onReverseComplete: () =>
-            typeof ScrollTrigger !== 'undefined' ? ScrollTrigger.refresh() : null,
+          // gated: a raw refresh here is a sync reflow that can stall mid-scroll
+          onComplete: requestScrollRefresh,
+          onReverseComplete: requestScrollRefresh,
         })
         tl.set(content, { display: 'block' })
         tl.fromTo(content, { height: 0 }, { height: 'auto' })
@@ -961,165 +593,19 @@ const initFaqs = () => {
 }
 
 function initPriceCards(next = document) {
-  ScrollTrigger.refresh()
-  let wrap = next.querySelector('[data-price-status]')
+  const wrap = next.querySelector('[data-price-status]')
+  if (!wrap) return
 
-  if (!wrap) {
-    return
-  }
-
-  if (wrap) {
-    const buttons = wrap.querySelectorAll('[data-price-toggle]')
-    const row = wrap
-
-    buttons.forEach((button) => {
-      const type = button.getAttribute('data-price-toggle')
-      button.addEventListener('click', () => {
-        if (row.getAttribute('data-price-status') === type) return
-        row.setAttribute('data-price-status', type)
-        buttons.forEach((btn) => btn.classList.remove('is--active'))
-        button.classList.add('is--active')
-      })
+  const buttons = wrap.querySelectorAll('[data-price-toggle]')
+  buttons.forEach((button) => {
+    const type = button.getAttribute('data-price-toggle')
+    button.addEventListener('click', () => {
+      if (wrap.getAttribute('data-price-status') === type) return
+      wrap.setAttribute('data-price-status', type)
+      buttons.forEach((btn) => btn.classList.remove('is--active'))
+      button.classList.add('is--active')
     })
-  } else {
-    const left = wrap.querySelector('.p-card.is--left')
-    const right = wrap.querySelector('.p-card.is--right')
-    const center = wrap.querySelector('.p-card.is--center')
-    const anim = wrap.querySelector('[data-lottie]')
-    const cards = wrap.querySelectorAll('.p-card')
-    const sub = wrap.querySelectorAll('.p-card__sub')
-
-    const animation = lottie.loadAnimation({
-      container: anim,
-      renderer: 'svg',
-      loop: false,
-      autoplay: false,
-      path: anim.getAttribute('data-lottie-path'),
-    })
-
-    gsap
-      .timeline({
-        scrollTrigger: {
-          trigger: wrap,
-          start: 'top bottom',
-          toggleActions: 'play none none reverse',
-        },
-        onReverseComplete: () => {
-          animation.goToAndStop(0, true)
-        },
-      })
-      .from(left, {
-        xPercent: 80,
-        yPercent: 30,
-        rotate: 6,
-        duration: 0.8,
-        ease: 'back.out(1.8)',
-      })
-      .from(
-        right,
-        {
-          xPercent: -80,
-          yPercent: 30,
-          rotate: -6,
-          duration: 0.8,
-          ease: 'back.out(1.8)',
-        },
-        0
-      )
-      .from(
-        center,
-        {
-          yPercent: 10,
-          scale: 0.85,
-          duration: 0.8,
-          ease: 'back.out(1.5)',
-          onStart: () => {
-            gsap.delayedCall(0.5, () => {
-              animation.play()
-            })
-          },
-        },
-        0
-      )
-
-    cards.forEach((card) => {
-      card.addEventListener('mouseenter', () => {
-        cards.forEach((c) => c.classList.remove('is--active'))
-        card.classList.add('is--active')
-        gsap.to(card, {
-          scale: prefersReducedMotion() ? 1 : 1.1,
-          duration: 0.3,
-          ease: 'back.out(1.8)',
-          overwrite: 'auto',
-        })
-      })
-
-      card.addEventListener('mouseleave', () => {
-        card.classList.remove('is--active')
-        center.classList.add('is--active')
-        gsap.to(card, {
-          scale: 1,
-          duration: 0.3,
-          ease: 'back.out(1.5)',
-          overwrite: 'auto',
-        })
-      })
-    })
-
-    const solo = next.querySelector('[data-price-solo]')
-    const joint = next.querySelector('[data-price-joint]')
-    const toggleTl = gsap.timeline({ paused: true })
-    toggleTl
-      .to('.p-card__heading', {
-        y: '-0.9em',
-        duration: 0.5,
-        ease: 'back.inOut(2)',
-      })
-      .to(
-        '.p-card__eyebrow .eyebrow',
-        {
-          yPercent: -100,
-          duration: 0.5,
-          ease: 'back.inOut(2)',
-        },
-        0
-      )
-      .to(
-        '.p-card__sign.offset',
-        {
-          left: '0em',
-          duration: 0.5,
-          ease: 'back.inOut(2)',
-        },
-        0
-      )
-      .to(
-        sub,
-        {
-          x: '0em',
-          duration: 0.5,
-          ease: 'back.inOut(2)',
-        },
-        0
-      )
-
-    solo.addEventListener('click', () => {
-      if (!solo.classList.contains('is--active')) {
-        joint.classList.remove('is--active')
-        solo.classList.add('is--active')
-        toggleTl.reverse()
-      }
-    })
-
-    joint.addEventListener('click', () => {
-      if (!joint.classList.contains('is--active')) {
-        solo.classList.remove('is--active')
-        joint.classList.add('is--active')
-        toggleTl.play()
-      }
-    })
-    wrap = null
-  }
+  })
 }
 
 // per-char stagger offsets
@@ -1198,10 +684,22 @@ const initHeroParallax = () => {
 }
 
 function initTabs() {
-  const wrap = document.querySelector('[data-init-progress]')
-  if (!wrap) return
+  document.querySelectorAll('[data-init-progress]').forEach(initTabsSection)
+}
 
+function initTabsSection(wrap) {
   const VISUAL_SELECTOR = '.visual_img' // edit if Webflow renames it
+  const DIRECTION_ATTR = 'data-wf--tabs---animate-from--direction'
+  const DIRECTIONS = {
+    top: [0, -1],
+    right: [1, 0],
+    bottom: [0, 1],
+    left: [-1, 0],
+    'top-left': [-1, -1],
+    'top-right': [1, -1],
+    'bottom-left': [-1, 1],
+    'bottom-right': [1, 1],
+  }
 
   const progressItems = [...wrap.querySelectorAll('.progress_item')]
   const visualItems = [...wrap.querySelectorAll('.progress-visual_item')]
@@ -1218,26 +716,40 @@ function initTabs() {
   const CONTENT_OUT = 0.25 // fade out
   const REVEAL_STAGGER = 0.03
 
-  const tabs = progressItems.map((item) => ({
-    item,
-    line: item.querySelector('.progress_line'),
-    bar: item.querySelector('.progress_line-active'),
-    cap: item.querySelector('.progress_line-cap'),
-    expand: item.querySelector('.progress_expand-w'),
-    reveal: [...item.querySelectorAll('.progress_expand > *')],
-  }))
+  const tabs = progressItems.map((item, i) => {
+    const visualItem = visualItems[i]
+    const direction = visualItem?.querySelector(`[${DIRECTION_ATTR}]`)?.getAttribute(DIRECTION_ATTR)
+    const [dx, dy] = DIRECTIONS[direction] || DIRECTIONS.bottom
+    return {
+      item,
+      line: item.querySelector('.progress_line'),
+      bar: item.querySelector('.progress_line-active'),
+      cap: item.querySelector('.progress_line-cap'),
+      expand: item.querySelector('.progress_expand-w'),
+      reveal: [...item.querySelectorAll('.progress_expand > *')],
+      visual: visualItem ? visualItem.querySelector(VISUAL_SELECTOR) : null,
+      dx,
+      dy,
+    }
+  })
 
-  tabs.forEach((tab) => {
+  tabs.forEach((tab, i) => {
     if (tab.expand) gsap.set(tab.expand, { display: 'block', height: 0 })
     if (tab.reveal.length) gsap.set(tab.reveal, { autoAlpha: 0, y: '1rem' })
-    if (tab.bar) gsap.set(tab.bar, { height: barHeightInitial })
+    if (tab.bar) gsap.set(tab.bar, { height: barHeightInitial, transformOrigin: 'top left' })
     if (tab.line) gsap.set(tab.line, { height: barHeightInitial })
     if (tab.cap) gsap.set(tab.cap, { top: 0, y: parseFloat(barHeightInitial) })
+    // first is visible from load
+    if (tab.visual) {
+      gsap.set(tab.visual, { autoAlpha: i === 0 ? 1 : 0 })
+      tab.visual.decode?.().catch(() => {})
+    }
   })
-  // first is visible from load
-  visualItems.forEach((v, i) =>
-    gsap.set(v.querySelector(VISUAL_SELECTOR), { autoAlpha: i === 0 ? 1 : 0 })
-  )
+
+  // Safari: without containment WebKit re-lays-out the visual imgs on every
+  // frame of the expand height tween even though they never move — measured
+  // 28ms → 16.7ms frames. Containment lets it skip the whole subtree.
+  visualItems.forEach((v) => (v.style.contain = 'layout paint'))
 
   let activeIndex = null
   let currentTl = null
@@ -1246,15 +758,19 @@ function initTabs() {
 
   function startProgressBar(index, target) {
     if (barTween) barTween.kill()
-    const { bar, cap } = tabs[index]
+    const tab = tabs[index]
+    const { bar, cap } = tab
     if (!bar) return
-    gsap.set(bar, { height: barHeightInitial })
+    // fill via scaleY, not height — a 7s height tween relayouts every frame,
+    // which is the main Safari jank source in this section
+    tab.barScaleMin = parseFloat(barHeightInitial) / target
+    gsap.set(bar, { height: target, scaleY: tab.barScaleMin })
     if (cap) gsap.set(cap, { y: parseFloat(barHeightInitial) })
     barTween = gsap.timeline({
       delay: BAR_START_DELAY,
       onComplete: () => switchTab((index + 1) % count),
     })
-    barTween.to(bar, { height: target, duration: AUTOPLAY_DURATION, ease: 'none' }, 0)
+    barTween.to(bar, { scaleY: 1, duration: AUTOPLAY_DURATION, ease: 'none', force3D: true }, 0)
     if (cap) barTween.to(cap, { y: target, duration: AUTOPLAY_DURATION, ease: 'none' }, 0)
   }
 
@@ -1265,27 +781,33 @@ function initTabs() {
     if (currentTl) currentTl.kill()
 
     const incoming = tabs[index]
-    const incomingVisual = visualItems[index].querySelector(VISUAL_SELECTOR)
+    const incomingVisual = incoming.visual
 
-    progressItems.forEach((el, i) => el.classList.toggle('is--active', i === index))
-
-    // expanded height (track still growing)
+    // reads before the class toggle dirties layout (avoids a forced reflow)
     const lineTarget = incoming.expand
       ? incoming.item.getBoundingClientRect().height + incoming.expand.scrollHeight
       : incoming.item.getBoundingClientRect().height
 
+    progressItems.forEach((el, i) => el.classList.toggle('is--active', i === index))
+
     startProgressBar(index, lineTarget)
+
+    // only tabs that are actually open get collapse tweens; `open` clears on
+    // the timeline's onComplete, so a killed mid-collapse tab re-collapses on
+    // the next switch instead of freezing half-open
+    const closing = tabs.filter((tab, i) => i !== index && tab.open)
+    incoming.open = true
 
     const tl = gsap.timeline({
       onComplete: () => {
+        closing.forEach((tab) => (tab.open = false))
         if (currentTl === tl) currentTl = null
       },
     })
     currentTl = tl
 
     // `to` so interrupts collapse in place
-    tabs.forEach((tab, i) => {
-      if (i === index) return
+    closing.forEach((tab) => {
       if (tab.expand)
         tl.to(tab.expand, { height: 0, duration: SWITCH_DURATION, ease: EXPAND_EASE }, 0)
       if (tab.line)
@@ -1295,13 +817,18 @@ function initTabs() {
           0
         )
       if (tab.bar)
-        tl.to(tab.bar, { height: barHeightInitial, duration: 0.3, ease: 'power4.out' }, 0)
+        tl.to(tab.bar, { scaleY: tab.barScaleMin || 1, duration: 0.3, ease: 'power4.out' }, 0)
       if (tab.cap)
         tl.to(tab.cap, { y: parseFloat(barHeightInitial), duration: 0.3, ease: 'power4.out' }, 0)
       if (tab.reveal.length)
         tl.to(tab.reveal, { autoAlpha: 0, y: '-1rem', duration: CONTENT_OUT, ease: 'power2.in' }, 0)
-      const vis = visualItems[i].querySelector(VISUAL_SELECTOR)
-      if (vis) tl.to(vis, { autoAlpha: 0, y: '2rem', duration: 0.5, ease: 'power2.in' }, 0)
+      if (tab.visual)
+        tl.to(
+          tab.visual,
+          // exits back toward where it entered from
+          { autoAlpha: 0, x: tab.dx * 2 + 'rem', y: tab.dy * 2 + 'rem', duration: 0.5, ease: 'power2.in' },
+          0
+        )
     })
 
     if (incoming.expand)
@@ -1328,8 +855,8 @@ function initTabs() {
       if (!(isFirst && index === 0)) {
         tl.fromTo(
           incomingVisual,
-          { autoAlpha: 0, y: '4rem' },
-          { autoAlpha: 1, y: '0rem', duration: 0.8, ease: 'power4.out' },
+          { autoAlpha: 0, x: incoming.dx * 4 + 'rem', y: incoming.dy * 4 + 'rem' },
+          { autoAlpha: 1, x: '0rem', y: '0rem', duration: 0.8, ease: 'power4.out' },
           SWITCH_DURATION
         )
       }
@@ -1339,7 +866,7 @@ function initTabs() {
   // autoplay only while in view
   let started = false
   ScrollTrigger.create({
-    trigger: '[data-init-progress]',
+    trigger: wrap,
     start: 'top 50%',
     end: 'bottom top',
     onToggle: (self) => {
@@ -1487,7 +1014,12 @@ const initFooterGradient = () => {
 const initAnimateCards = () => {
   if (!document.querySelector('[data-animate-cards]')) return
 
-  const cards = document.querySelectorAll('[data-animate-cards]')
+  // Webflow nests data-animate-cards on both the list wrapper and its inner
+  // display-contents div; only process the outer one or every card gets a
+  // duplicate timeline that stomps the first and kills the stagger.
+  const cards = [...document.querySelectorAll('[data-animate-cards]')].filter(
+    (el) => !el.parentElement?.closest('[data-animate-cards]')
+  )
 
   const mm = gsap.matchMedia()
   mm.add(MQ.tabletUp, () => {
@@ -1802,9 +1334,18 @@ const initHeroIntro = () => {
     const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } })
 
     if (title) {
-      const split = new SplitText(title, { type: 'lines, chars' })
-      highlightFill(title, split, tl, T.title, 0) // hide chars first (no flash)
-      gsap.set(title, { autoAlpha: 1 })
+      let played = false
+      SplitText.create(title, {
+        type: 'lines, words, chars',
+        autoSplit: true,
+        onSplit(split) {
+          // resize re-splits land here too: rewrap only, don't replay the intro
+          if (played) return
+          played = true
+          highlightFill(title, split, tl, T.title, 0) // hide chars first (no flash)
+          gsap.set(title, { autoAlpha: 1 })
+        },
+      })
     }
 
     if (paragraph) {
@@ -1883,5 +1424,5 @@ export function initGlobal() {
 
   initNotificationBanner()
 
-  //initParallax()
+  initParallax()
 }
