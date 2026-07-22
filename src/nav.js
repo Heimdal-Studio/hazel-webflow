@@ -432,10 +432,12 @@ function initMegaNavDirectionalHover() {
 
   // MOBILE — burger animation
   function animateBurger(toX) {
+    // measured, not hardcoded — must exactly match line-height + gap or the X won't meet at center
+    const pitch = lineMid.getBoundingClientRect().top - lineTop.getBoundingClientRect().top
     const tl = gsap.timeline({ defaults: { ease: 'power2.inOut' } })
     if (toX) {
-      tl.to(lineTop, { y: '0.3125em', duration: 0.15 }, 0)
-      tl.to(lineBot, { y: '-0.3125em', duration: 0.15 }, 0)
+      tl.to(lineTop, { y: pitch, duration: 0.15 }, 0)
+      tl.to(lineBot, { y: -pitch, duration: 0.15 }, 0)
       tl.to(lineMid, { autoAlpha: 0, duration: 0.1 }, 0.1)
       tl.to(lineTop, { rotation: 45, duration: 0.2 }, 0.15)
       tl.to(lineBot, { rotation: -45, duration: 0.2 }, 0.15)
@@ -943,10 +945,12 @@ function initNavDropdown() {
         let menuOpen = false
 
         const animateBurger = (toX) => {
+          // measured, not hardcoded — must exactly match line-height + gap or the X won't meet at center
+          const pitch = lineMid.getBoundingClientRect().top - lineTop.getBoundingClientRect().top
           const tl = gsap.timeline({ defaults: { ease: 'power2.inOut' } })
           if (toX) {
-            tl.to(lineTop, { y: '4px', duration: d(0.15) }, 0)
-            tl.to(lineBot, { y: '-4px', duration: d(0.15) }, 0)
+            tl.to(lineTop, { y: pitch, duration: d(0.15) }, 0)
+            tl.to(lineBot, { y: -pitch, duration: d(0.15) }, 0)
             tl.to(lineMid, { autoAlpha: 0, duration: d(0.1) }, 0.1)
             tl.to(lineTop, { rotation: 45, duration: d(0.2) }, 0.15)
             tl.to(lineBot, { rotation: -45, duration: d(0.2) }, 0.15)

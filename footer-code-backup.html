@@ -1,0 +1,311 @@
+<!-- -->
+<!-- GSAP -->
+<!-- -->
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+
+<!-- -->
+<!-- lenis -->
+<!-- -->
+<script defer src="https://unpkg.com/lenis@1.3.1/dist/lenis.min.js"></script>
+
+<script>
+  ;(function () {
+    var LOCALHOST_URL = [
+      'https://localhost:4012/@vite/client',
+      'https://localhost:4012/src/main.js',
+      'https://localhost:4012/src/gl/embed.js',
+    ]
+    var PROD_URL = [
+      'https://hazel-webflow.vercel.app/main.js',
+      'https://hazel-webflow.vercel.app/gl.js',
+    ]
+
+    function createScripts(arr, isDevMode) {
+      return arr.map(function (url) {
+        var s = document.createElement('script')
+        s.src = url
+        if (isDevMode) s.type = 'module'
+        return s
+      })
+    }
+
+    function insertScript(scriptArr) {
+      scriptArr.forEach(function (script) {
+        document.body.appendChild(script)
+      })
+    }
+
+    var localhostScripts = createScripts(LOCALHOST_URL, true)
+    var prodScripts = createScripts(PROD_URL, false)
+    var chosen = null
+
+    fetch(LOCALHOST_URL[0], {})
+      .then(function () {
+        chosen = localhostScripts
+      })
+      .catch(function () {
+        chosen = prodScripts
+      })
+      .finally(function () {
+        if (chosen) {
+          insertScript(chosen)
+          return
+        }
+        console.error('No scripts loaded')
+      })
+  })()
+</script>
+<script>
+  {
+    let lenis
+
+    const lenisMQ = window.matchMedia('(max-width: 767px)')
+    // Safari: native scroll is compositor-threaded; Lenis forces it through JS
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent) // ← new
+    const lenisRaf = (time) => lenis?.raf(time * 1000)
+
+    const startLenis = () => {
+      if (lenis || lenisMQ.matches || isSafari) return // ← changed
+      lenis = new Lenis({ duration: 0.2 })
+      window.lenis = lenis // debuggable from console                              // ← new
+      lenis.on('scroll', ScrollTrigger.update)
+      gsap.ticker.add(lenisRaf)
+    }
+    const stopLenis = () => {
+      if (!lenis) return
+      gsap.ticker.remove(lenisRaf)
+      lenis.destroy()
+      lenis = null
+      window.lenis = null
+    }
+    lenisMQ.addEventListener?.('change', (e) => (e.matches ? stopLenis() : startLenis()))
+
+    const initScroll = () => {
+      // Skip refresh on the mobile URL-bar show/hide (height-only resize).
+      ScrollTrigger.config({ ignoreMobileResize: true })
+      gsap.ticker.lagSmoothing(0)
+
+      startLenis()
+
+      $('[data-lenis-start]').on('click', () => lenis?.start())
+      $('[data-lenis-stop]').on('click', () => lenis?.stop())
+      $('[data-lenis-toggle]').on('click', function () {
+        $(this).toggleClass('stop-scroll')
+        $(this).hasClass('stop-scroll') ? lenis?.stop() : lenis?.start()
+      })
+    }
+
+    function initGsapGlobal() {
+      initScroll()
+
+      const sendGsapEvent = () =>
+        window.dispatchEvent(new CustomEvent('GSAPReady', { detail: { lenis } }))
+
+      if (document.fonts.status === 'loaded') sendGsapEvent()
+      else document.fonts.ready.then(sendGsapEvent)
+
+      queueMicrotask(() => {
+        document.querySelectorAll("[data-start='hidden']").forEach((el) => {
+          const delay = parseFloat(el.getAttribute('data-start-delay')) || 0.4
+          gsap.to(el, { autoAlpha: 1, duration: 0.4, delay })
+        })
+      })
+    }
+
+    const documentReady =
+      document.readyState === 'complete' || document.readyState === 'interactive'
+    if (documentReady) initGsapGlobal()
+    else addEventListener('DOMContentLoaded', () => initGsapGlobal())
+  }
+</script>
+
+<!--
+<script>
+  //Reset Scroll Triggers
+  (function () {
+    let lastHeight = document.body.scrollHeight;
+
+    new ResizeObserver(() => {
+      const newHeight = document.body.scrollHeight;
+      if (newHeight !== lastHeight) {
+        lastHeight = newHeight;
+        ScrollTrigger.refresh();
+      }
+    }).observe(document.body);
+  })();
+</script>
+-->
+
+<!--RudderStack event listeners updated 7/8-->
+<script>
+  ;(function () {
+    // ---- Mobile nav toggle ----
+    const navEl = document.querySelector('[data-menu-wrap]')
+    const burger = document.querySelector('[data-burger-toggle]')
+    const backdrop = document.querySelector('[data-menu-backdrop]')
+
+    if (burger) {
+      burger.addEventListener('click', function () {
+        const wasOpen = navEl.getAttribute('data-menu-open') === 'true'
+        rudderanalytics.track('mobile_nav_toggled', {
+          action: wasOpen ? 'closed' : 'opened',
+          trigger: 'burger_button',
+          page_path: window.location.pathname,
+        })
+      })
+    }
+
+    if (backdrop) {
+      backdrop.addEventListener('click', function () {
+        rudderanalytics.track('mobile_nav_toggled', {
+          action: 'closed',
+          trigger: 'backdrop',
+          page_path: window.location.pathname,
+        })
+      })
+    }
+
+    // ---- Nav / in-page CTA / card / tab click delegation ----
+    function text(el) {
+      if (!el) return null
+      const t = el.textContent.trim()
+      return t.length ? t : null
+    }
+
+    document.addEventListener('click', function (e) {
+      try {
+        const nav = e.target.closest('.nav-bar_link, .nav_panel-link, .nav-bar_logo')
+        if (nav) {
+          const variant = nav.closest('.u-show-tablet')
+            ? 'mobile'
+            : nav.closest('.u-hide-tablet')
+              ? 'desktop'
+              : window.matchMedia('(max-width: 991px)').matches
+                ? 'mobile'
+                : 'desktop'
+
+          let navItem
+          if (nav.classList.contains('nav-bar_logo')) {
+            navItem = 'logo'
+          } else if (nav.dataset.dropdownToggle) {
+            navItem = nav.dataset.dropdownToggle
+          } else {
+            navItem = text(nav) ? text(nav).toLowerCase().replace(/\s+/g, '_') : null
+          }
+
+          rudderanalytics.track('nav_item_clicked', {
+            nav_item: navItem,
+            nav_variant: variant,
+            page_path: window.location.pathname,
+            destination_url: nav.href || null,
+          })
+          return
+        }
+
+        const cta = e.target.closest('.js-cta-track')
+        if (cta) {
+          const module = cta.closest('[data-module]')
+          rudderanalytics.track('cta_clicked', {
+            cta_label: text(cta),
+            cta_destination: cta.href || null,
+            module_name: module ? module.dataset.module || null : null,
+            page_path: window.location.pathname,
+          })
+          return
+        }
+
+        const card = e.target.closest('.js-card-track')
+        if (card) {
+          const module = card.closest('[data-module]')
+          const heading = card.querySelector('h1, h2, h3, h4, .card-heading')
+          const link = card.querySelector('a') || (card.tagName === 'A' ? card : null)
+          rudderanalytics.track('module_card_clicked', {
+            module_name: module ? module.dataset.module || null : null,
+            card_label: text(heading) || text(card),
+            link_destination: link ? link.href || null : null,
+            page_path: window.location.pathname,
+          })
+          return
+        }
+
+        const tab = e.target.closest('.js-tab-track') // confirm real trigger class in the Designer first
+        if (tab) {
+          rudderanalytics.track('tab_switched', {
+            module_name: 'capability_tabs',
+            tab_label: text(tab),
+            page_path: window.location.pathname,
+          })
+        }
+      } catch (err) {
+        // swallow -- a tracking failure should never break a real button
+      }
+    })
+
+    // ---- Testimonials carousel (Swiper) ----
+    let lastArrowClickAt = 0
+
+    document.querySelectorAll('.slider_button').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        lastArrowClickAt = Date.now()
+        rudderanalytics.track('testimonial_carousel_interacted', {
+          interaction_type: 'arrow_click',
+          direction: btn.classList.contains('is-prev') ? 'prev' : 'next',
+          page_path: window.location.pathname,
+        })
+      })
+    })
+
+    const swiperEl = document.querySelector('.slider_wrap.swiper')
+    if (swiperEl && swiperEl.swiper) {
+      swiperEl.swiper.on('slideChange', function () {
+        if (Date.now() - lastArrowClickAt < 300) return
+        rudderanalytics.track('testimonial_carousel_interacted', {
+          interaction_type: 'drag',
+          page_path: window.location.pathname,
+        })
+      })
+    }
+
+    // ---- HubSpot demo form ----
+    window.addEventListener('message', function (event) {
+      if (!event.data || event.data.type !== 'hsFormCallback') return
+      // TODO: validate event.origin against HubSpot's known form domain here first.
+      if (event.data.eventName !== 'onFormSubmit') return
+
+      const fields = event.data.data || []
+      const find = (name) =>
+        fields.find(function (f) {
+          return f.name === name
+        })
+      const workEmail = find('email') // confirm exact field name once the form is built
+      const firmSize = find('firm_size')
+
+      rudderanalytics.track('demo_request_submitted', {
+        firm_size: firmSize ? firmSize.value : null,
+        has_requirements_text: !!find('requirements'),
+      })
+
+      if (workEmail && workEmail.value) {
+        rudderanalytics.identify(workEmail.value, {
+          website_reported_firm_size: firmSize ? firmSize.value : null,
+        })
+      }
+    })
+  })()
+</script>
+
+<!-- Google Tag Manager (noscript) -->
+
+<noscript
+  ><iframe
+    src="https://www.googletagmanager.com/ns.html?id=GTM-547NZTLM"
+    height="0"
+    width="0"
+    style="display: none; visibility: hidden"
+  ></iframe
+></noscript>
+
+<!-- End Google Tag Manager (noscript) -->

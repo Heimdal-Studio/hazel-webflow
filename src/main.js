@@ -6,6 +6,7 @@ import { initContact } from './pages/contact.js'
 import { initGlobal } from './global.js'
 import { initNav } from './nav.js'
 import { initPainterly } from './painterly-reveal/index.js'
+import { initTracking } from './tracking.js'
 
 ;(() => {
   // =============================================
@@ -92,5 +93,6 @@ import { initPainterly } from './painterly-reveal/index.js'
     }, 50)
   }
 
+  initTracking() // no GSAP dependency — must not wait out a blocked CDN
   whenPluginsReady(start)
 })()

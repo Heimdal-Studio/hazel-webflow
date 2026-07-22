@@ -93,5 +93,4 @@ export function initHome() {
   // initHeroShader()
   // initIconCards()
   initRace()
-  console.log('hi home')
 }

@@ -15,8 +15,8 @@ plan intent. If in doubt, add nothing and let it auto-derive.
 |---|---|---|---|
 | `data-price-event` | pricing card wrapper; page-level wrapper on product pages | `financial_planning_agent` \| `admin_ai` \| `tax_planning_agent` \| `bundle_all` \| `enterprise` | Routine — pricing cards + each product page |
 | `data-module` | a `section_*` wrapper | stable slug, e.g. `feature-cards-roles` | Only to override auto-from-class (collisions / generic class) |
-| `data-label` | a button/link | stable slug | Only when the text is a bad signal (icon-only, duplicate, copy churns) |
-| `data-event` | a button/link | an event name from the catalog | Only when the auto event type is wrong |
+| `data-label` | a button/link, or a wrapper right around it (nearest ancestor wins) | stable slug | Only when the text is a bad signal (icon-only, duplicate, copy churns) |
+| `data-event` | a button/link, or a wrapper right around it | an event name from the catalog | Only when the auto event type is wrong |
 
 ## Auto-derivation (why you don't tag most things)
 
@@ -25,9 +25,11 @@ plan intent. If in doubt, add nothing and let it auto-derive.
 - **module** = nearest `[data-module]` ancestor, else nearest `section_<name>` class minus the
   `section_` prefix (`section_bento` → `bento`). Same section class on different pages = same
   module, which is intended.
-- **trial** = any `a[href*="auth.hazel.altruist.com"]` → `trial_signup_started`. A "Start free
-  trial" button pointing at `/demo-request` is a demo CTA, not a trial — it correctly becomes
-  `cta_clicked`. Neither needs tagging.
+- **trial** = any `a[href*="auth.hazel.altruist.com"]`. The head UTM-handoff script owns
+  `trial_signup_started` (it's coupled to the auth redirect); `src/tracking.js` deliberately
+  swallows those clicks so they don't double as `cta_clicked`. A "Start free trial" button
+  pointing at `/demo-request` is a demo CTA, not a trial — it correctly becomes `cta_clicked`.
+  Neither needs tagging.
 
 ## Existing hooks — reuse, do NOT re-tag
 
@@ -94,4 +96,4 @@ const moduleOf = el => el.closest("[data-module]")?.dataset.module
 
 Pass = every pricing CTA shows the right `plan`, the two Home feature-card sections show distinct
 `module`, no important button has an empty/duplicate `label`. Add the minimal override and re-run.
-Then the consuming JS (`src/tracking/index.js`) is a mechanical follow-up.
+The consuming JS is `src/tracking.js` (initialized in `main.js` before the GSAP wait).
