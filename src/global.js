@@ -828,7 +828,13 @@ function initTabsSection(wrap) {
         tl.to(
           tab.visual,
           // exits back toward where it entered from
-          { autoAlpha: 0, x: tab.dx * 2 + 'rem', y: tab.dy * 2 + 'rem', duration: 0.5, ease: 'power2.in' },
+          {
+            autoAlpha: 0,
+            x: tab.dx * 2 + 'rem',
+            y: tab.dy * 2 + 'rem',
+            duration: 0.5,
+            ease: 'power2.in',
+          },
           0
         )
     })
@@ -1296,96 +1302,109 @@ const initParallax = (container = document) => {
   })
 }
 
+// Role -> default sequence. `at` = timeline position (s). `selector` infers the
+// role from existing markup (byte-compat); roles without one are opt-in via
+// data-hero-item. Values reproduce the previous hand-tuned home-hero timing.
+const HERO_SEQUENCE = {
+  // image is the LCP element: earlier + shorter keeps LCP ~1.4s (was 2.8s)
+  image: { at: 0.2, preset: 'rise', dur: 1.2, selector: '.hero_img' },
+  title: { at: 0.5, preset: 'highlight', selector: 'h1' },
+  para: { at: 0.8, preset: 'fade', dur: 0.6, y: '1rem', selector: '.w-richtext' },
+  buttons: { at: 1.0, preset: 'fade', dur: 0.5, y: '1rem', stagger: 0.08, all: true, selector: '.button-group .button-w' },
+  eyebrow: { at: 1.35, preset: 'fade', dur: 1, y: '0.5rem', selector: '.eyebrow_wrap' },
+  type: { at: 1.35, preset: 'typewriter', selector: '[data-typewriter]' },
+  list: { at: 0.9, preset: 'fade', dur: 0.6, y: '1rem', stagger: 0.1, all: true },
+  form: { at: 1.1, preset: 'fade', dur: 0.6, y: '1rem' },
+}
+
+// Per-page-type overrides keyed by the data-hero-intro value; list only the
+// roles that differ from HERO_SEQUENCE.
+const HERO_VARIANTS = {}
+
+const heroPreset = (preset, els, cfg, tl) => {
+  const at = cfg.at ?? 0
+  if (preset === 'highlight') {
+    const el = els[0]
+    let played = false
+    SplitText.create(el, {
+      type: 'lines, words, chars',
+      autoSplit: true,
+      onSplit(split) {
+        // resize re-splits land here too: rewrap only, don't replay the intro
+        if (played) return
+        played = true
+        highlightFill(el, split, tl, at, 0) // hide chars first (no flash)
+        gsap.set(el, { autoAlpha: 1 })
+      },
+    })
+  } else if (preset === 'typewriter') {
+    els.forEach((el) => {
+      const tw = typewriterPrep(el)
+      tl.to(tw.chars, tw.vars, at)
+    })
+  } else if (preset === 'rise') {
+    gsap.set(els, { autoAlpha: 0, yPercent: 40, scale: 1.05 })
+    tl.to(els, { autoAlpha: 1, yPercent: 0, scale: 1, duration: cfg.dur ?? 1.2, ease: 'power4.out', stagger: cfg.stagger }, at)
+  } else {
+    // fade
+    gsap.set(els, { autoAlpha: 0, y: cfg.y ?? '1rem' })
+    tl.to(els, { autoAlpha: 1, y: 0, duration: cfg.dur ?? 0.6, stagger: cfg.stagger }, at)
+  }
+}
+
 const initHeroIntro = () => {
   const hero = document.querySelector('[data-hero-intro]')
   if (!hero) return
 
-  const eyebrowWrap = hero.querySelector('.eyebrow_wrap')
-  const eyebrowText = hero.querySelector('[data-typewriter]')
-  const title = hero.querySelector('.h0')
-  const paragraph = hero.querySelector('p').parentElement
-  const buttons = hero.querySelectorAll('.button-group .button-w')
-  const image = hero.querySelector('.hero_img')
+  // explicit [data-hero-item] first, then infer remaining roles by selector
+  const claimed = new Set()
+  const groups = new Map()
+  const claim = (role, el) => {
+    if (!el || claimed.has(el)) return
+    claimed.add(el)
+    if (!groups.has(role)) groups.set(role, [])
+    groups.get(role).push(el)
+  }
+  hero.querySelectorAll('[data-hero-item]').forEach((el) => claim(el.getAttribute('data-hero-item'), el))
+  for (const [role, cfg] of Object.entries(HERO_SEQUENCE)) {
+    if (!cfg.selector) continue
+    ;(cfg.all ? hero.querySelectorAll(cfg.selector) : [hero.querySelector(cfg.selector)]).forEach((el) =>
+      claim(role, el)
+    )
+  }
+  if (!groups.size) return
 
-  const pieces = [eyebrowWrap, title, paragraph, ...buttons, image].filter(Boolean)
-  if (!pieces.length) return
-
-  // reduced motion: skip
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-    gsap.set(pieces, { autoAlpha: 1 })
+    gsap.set([...groups.values()].flat(), { autoAlpha: 1 })
     return
   }
 
-  // timing (s), eyebrow last
-  const T = {
-    title: 0.5,
-    para: 0.8,
-    paraDur: 0.6,
-    buttons: 1.0,
-    buttonsDur: 0.5,
-    buttonStagger: 0.08,
-    // image is the LCP element: earlier + shorter keeps LCP ~1.4s (was 2.8s)
-    image: 0.2,
-    imageDur: 1.2,
-    eyebrow: 1.35,
-    eyebrowDur: 1,
-    type: 1.35,
+  const variant = HERO_VARIANTS[hero.getAttribute('data-hero-intro')] || {}
+  const num = (el, attr) => {
+    const v = parseFloat(el.getAttribute(attr))
+    return Number.isFinite(v) ? v : undefined
+  }
+  const resolve = (role, el) => {
+    const cfg = { ...HERO_SEQUENCE[role], ...variant[role] }
+    const order = num(el, 'data-hero-order')
+    if (order !== undefined) cfg.at = order
+    const delay = num(el, 'data-hero-delay')
+    if (delay !== undefined) cfg.at = (cfg.at ?? 0) + delay
+    const preset = el.getAttribute('data-hero-preset')
+    if (preset) cfg.preset = preset
+    return cfg
   }
 
   const build = () => {
     const tl = gsap.timeline({ paused: true, defaults: { ease: 'power3.out' } })
-
-    if (title) {
-      let played = false
-      SplitText.create(title, {
-        type: 'lines, words, chars',
-        autoSplit: true,
-        onSplit(split) {
-          // resize re-splits land here too: rewrap only, don't replay the intro
-          if (played) return
-          played = true
-          highlightFill(title, split, tl, T.title, 0) // hide chars first (no flash)
-          gsap.set(title, { autoAlpha: 1 })
-        },
-      })
-    }
-
-    if (paragraph) {
-      gsap.set(paragraph, { autoAlpha: 0, y: '1rem' })
-      tl.to(paragraph, { autoAlpha: 1, y: 0, duration: T.paraDur }, T.para)
-    }
-
-    if (buttons.length) {
-      gsap.set(buttons, { autoAlpha: 0, y: '1rem' })
-      tl.to(
-        buttons,
-        { autoAlpha: 1, y: 0, duration: T.buttonsDur, stagger: T.buttonStagger },
-        T.buttons
-      )
-    }
-
-    if (image) {
-      gsap.set(image, { autoAlpha: 0, yPercent: 40, scale: 1.05 })
-      tl.to(
-        image,
-        { autoAlpha: 1, yPercent: 0, scale: 1, duration: T.imageDur, ease: 'power4.out' },
-        T.image
-      )
-    }
-
-    if (eyebrowWrap) {
-      gsap.set(eyebrowWrap, { autoAlpha: 0, y: '0.5rem' })
-      tl.to(eyebrowWrap, { autoAlpha: 1, y: 0, duration: T.eyebrowDur }, T.eyebrow)
-    }
-    if (eyebrowText) {
-      const tw = typewriterPrep(eyebrowText)
-      tl.to(tw.chars, tw.vars, T.type)
-    }
-
+    groups.forEach((els, role) => {
+      const cfg = resolve(role, els[0])
+      heroPreset(cfg.preset || 'fade', els, cfg, tl)
+    })
     tl.play()
   }
 
-  // wait for fonts + bg image
+  // wait for fonts always; bg image only if data-hero-reveal is present (animated hero may not ship)
   const heroMedia = document.querySelector('[data-hero-reveal]')?.getAttribute('data-hero-media')
   const decoded = heroMedia
     ? Object.assign(new Image(), { src: heroMedia })

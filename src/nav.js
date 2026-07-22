@@ -873,7 +873,6 @@ function initNavDropdown() {
       }
 
       // ── baseline (closed) ────────────────────────────────────────────
-      // ponytail: mobile shows the panel expanded inline via CSS — JS leaves it alone.
       if (backdrop) gsap.set(backdrop, { autoAlpha: 0 })
       toggles.forEach((toggle) => {
         const panel = panelOf(toggle)
@@ -885,9 +884,14 @@ function initNavDropdown() {
           gsap.set(panel, { autoAlpha: 0, y: 0, pointerEvents: 'none', clearProps: 'height' })
           gsap.set(fadesOf(panel), { autoAlpha: 0, x: 0, y: 0 })
         } else if (panel) {
-          // mobile: panel is open inline — override the hidden base class, make it clickable
-          gsap.set(panel, { autoAlpha: 1, pointerEvents: 'auto' })
-          gsap.set(fadesOf(panel), { autoAlpha: 1 })
+          gsap.set(panel, {
+            autoAlpha: 1,
+            height: 0,
+            overflow: 'hidden',
+            pointerEvents: 'none',
+            clearProps: 'transform',
+          })
+          gsap.set(fadesOf(panel), { autoAlpha: 0, x: 0, y: 0 })
         }
       })
 
@@ -941,8 +945,8 @@ function initNavDropdown() {
         const animateBurger = (toX) => {
           const tl = gsap.timeline({ defaults: { ease: 'power2.inOut' } })
           if (toX) {
-            tl.to(lineTop, { y: '0.3125em', duration: d(0.15) }, 0)
-            tl.to(lineBot, { y: '-0.3125em', duration: d(0.15) }, 0)
+            tl.to(lineTop, { y: '4px', duration: d(0.15) }, 0)
+            tl.to(lineBot, { y: '-4px', duration: d(0.15) }, 0)
             tl.to(lineMid, { autoAlpha: 0, duration: d(0.1) }, 0.1)
             tl.to(lineTop, { rotation: 45, duration: d(0.2) }, 0.15)
             tl.to(lineBot, { rotation: -45, duration: d(0.2) }, 0.15)
@@ -1004,7 +1008,12 @@ function initNavDropdown() {
         menuWrap.setAttribute('data-menu-open', 'false')
 
         on(burger, 'click', () => (menuOpen ? closeMenu() : openMenu()))
-        // ponytail: no mobile accordion — panel is expanded inline via CSS.
+        toggles.forEach((toggle) =>
+          on(toggle, 'click', (e) => {
+            e.preventDefault()
+            togglePanel(toggle)
+          })
+        )
         on(document, 'keydown', (e) => {
           if (e.key !== 'Escape') return
           if (openToggle) closePanel(openToggle)
