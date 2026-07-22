@@ -1,51 +1,44 @@
 # Hero intro (`data-hero-intro`)
 
 Choreographed reveal of the pieces inside a hero. One engine, `initHeroIntro` in
-[src/global.js](src/global.js), drives every page. ~90% of heroes need **zero
-markup** beyond `data-hero-intro` on the container — roles are inferred from the
-existing Webflow classes and play on a shared default sequence. Per-page-type
-differences are declarative.
+[src/global.js](src/global.js), drives every page. Fully attribute-driven: a
+piece animates only if it carries its role attribute, `data-hero-<role>`. The
+role supplies the default order, preset, and timing, so a standard hero needs no
+other attributes. Nothing is targeted by class, so repeated classes inside the
+hero (e.g. `.eyebrow_wrap` on numbered list items) are never touched by accident.
 
 Not to be confused with `data-start="hidden"` (a generic block fade owned by the
 Webflow footer/head code) or `data-hero-reveal` (the WebGL hero, see
 [HERO-REVEAL.md](HERO-REVEAL.md)). The intro reveals the hero's *inner* pieces
 after the container block-fades in.
 
-## Roles
+## Setup
 
-Add `data-hero-intro=""` to the hero container. These roles are inferred
-automatically (no per-element markup), on this default timeline:
+1. `data-hero-intro=""` on the hero container (a variant key is optional, below).
+2. `data-hero-<role>` on each piece you want animated.
 
-| Role      | Inferred from                | at (s) | Preset      |
-|-----------|------------------------------|--------|-------------|
-| `image`   | `.hero_img`                  | 0.2    | rise (LCP)  |
-| `title`   | `h1`                         | 0.5    | highlight   |
-| `para`    | `.w-richtext`                | 0.8    | fade        |
-| `list`    | *(opt-in only)*              | 0.9    | fade-stagger|
-| `buttons` | `.button-group .button-w`    | 1.0    | fade-stagger|
-| `form`    | *(opt-in only)*              | 1.1    | fade        |
-| `eyebrow` | `.eyebrow_wrap`              | 1.35   | fade        |
-| `type`    | `[data-typewriter]` (first)  | 1.35   | typewriter  |
+| Role attribute | at (s) | Preset | Notes |
+|---|---|---|---|
+| `data-hero-img` | 0.2 | rise (LCP) | up + scale settle |
+| `data-hero-title` | 0.5 | highlight | per-char fill |
+| `data-hero-text` | 0.8 | fade | up + fade |
+| `data-hero-list` | 0.9 | fade | stagger 0.1 |
+| `data-hero-buttons` | 1.0 | fade | stagger 0.08 |
+| `data-hero-form` | 1.1 | fade | |
+| `data-hero-testimonial` | 1.2 | fade | |
+| `data-hero-eyebrow` | 1.35 | fade | the `.eyebrow_wrap` block |
+| `data-hero-type` | 1.35 | typewriter | per-char type-on (typewriter text) |
 
-Presets: `rise` (up + scale settle), `highlight` (per-char fill), `typewriter`
-(per-char type-on), `fade` (up + fade, optional stagger).
+Putting the same role attribute on several elements groups them into one
+staggered reveal, e.g. `data-hero-list` on each `.demo-h_item`. Put it on the
+wrapper instead to move the whole block as one.
 
-## Extra pieces (lead-capture / pricing)
-
-Pieces with no default selector (a steps list, an embedded form) opt in with
-`data-hero-item`:
-
-```html
-<div class="demo-h_list" data-hero-item="list"></div>
-<div class="demo-h_form" data-hero-item="form"></div>
-```
-
-`data-hero-item` also accepts any of the inferred role names to tag an element
-explicitly.
+A typewriter eyebrow is two attributes: `data-hero-eyebrow` on `.eyebrow_wrap`
+and `data-hero-type` on the inner typewriter text.
 
 ## Per-element overrides
 
-On any hero piece:
+On any tagged piece:
 
 - `data-hero-order="0.7"` — set the absolute timeline position (s).
 - `data-hero-delay="0.2"` — offset the resolved position.
@@ -66,11 +59,21 @@ Empty value (`data-hero-intro=""`) = default sequence.
 
 ## Webflow anti-FOUC (paste once, Head Code)
 
-Inferred pieces are already pre-hidden by the existing class rules. Add one rule
-so opt-in `data-hero-item` pieces don't flash before the timeline runs:
+Pre-hide every tagged piece before the timeline runs. CSS can't wildcard
+attribute names, so the roles are listed (attribute-based, stable, only grows
+when a role is added):
 
 ```css
-[data-hero-intro] [data-hero-item] { visibility: hidden; }
+[data-hero-intro] [data-hero-img],
+[data-hero-intro] [data-hero-title],
+[data-hero-intro] [data-hero-text],
+[data-hero-intro] [data-hero-list],
+[data-hero-intro] [data-hero-buttons],
+[data-hero-intro] [data-hero-form],
+[data-hero-intro] [data-hero-testimonial],
+[data-hero-intro] [data-hero-eyebrow],
+[data-hero-intro] [data-hero-type] { visibility: hidden; }
 ```
 
-`prefers-reduced-motion` shows every piece with no motion.
+Remove the old class-based block. `prefers-reduced-motion` shows every piece
+with no motion.

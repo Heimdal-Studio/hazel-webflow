@@ -1302,19 +1302,20 @@ const initParallax = (container = document) => {
   })
 }
 
-// Role -> default sequence. `at` = timeline position (s). `selector` infers the
-// role from existing markup (byte-compat); roles without one are opt-in via
-// data-hero-item. Values reproduce the previous hand-tuned home-hero timing.
+// Role -> default sequence. `at` = timeline position (s). Pieces opt in with a
+// per-role attribute, data-hero-<role>; the role supplies default order/preset/
+// timing so a hero needs no other attributes. Values reproduce the prior timing.
 const HERO_SEQUENCE = {
   // image is the LCP element: earlier + shorter keeps LCP ~1.4s (was 2.8s)
-  image: { at: 0.2, preset: 'rise', dur: 1.2, selector: '.hero_img' },
-  title: { at: 0.5, preset: 'highlight', selector: 'h1' },
-  para: { at: 0.8, preset: 'fade', dur: 0.6, y: '1rem', selector: '.w-richtext' },
-  buttons: { at: 1.0, preset: 'fade', dur: 0.5, y: '1rem', stagger: 0.08, all: true, selector: '.button-group .button-w' },
-  eyebrow: { at: 1.35, preset: 'fade', dur: 1, y: '0.5rem', selector: '.eyebrow_wrap' },
-  type: { at: 1.35, preset: 'typewriter', selector: '[data-typewriter]' },
-  list: { at: 0.9, preset: 'fade', dur: 0.6, y: '1rem', stagger: 0.1, all: true },
+  img: { at: 0.2, preset: 'rise', dur: 1.2 },
+  title: { at: 0.5, preset: 'highlight' },
+  text: { at: 0.8, preset: 'fade', dur: 0.6, y: '1rem' },
+  list: { at: 0.9, preset: 'fade', dur: 0.6, y: '1rem', stagger: 0.1 },
+  buttons: { at: 1.0, preset: 'fade', dur: 0.5, y: '1rem', stagger: 0.08 },
   form: { at: 1.1, preset: 'fade', dur: 0.6, y: '1rem' },
+  testimonial: { at: 1.2, preset: 'fade', dur: 0.6, y: '1rem' },
+  eyebrow: { at: 1.35, preset: 'fade', dur: 1, y: '0.5rem' },
+  type: { at: 1.35, preset: 'typewriter' },
 }
 
 // Per-page-type overrides keyed by the data-hero-intro value; list only the
@@ -1356,21 +1357,12 @@ const initHeroIntro = () => {
   const hero = document.querySelector('[data-hero-intro]')
   if (!hero) return
 
-  // explicit [data-hero-item] first, then infer remaining roles by selector
-  const claimed = new Set()
+  // each role is its own attribute (data-hero-<role>); same role on N elements
+  // = one staggered group
   const groups = new Map()
-  const claim = (role, el) => {
-    if (!el || claimed.has(el)) return
-    claimed.add(el)
-    if (!groups.has(role)) groups.set(role, [])
-    groups.get(role).push(el)
-  }
-  hero.querySelectorAll('[data-hero-item]').forEach((el) => claim(el.getAttribute('data-hero-item'), el))
-  for (const [role, cfg] of Object.entries(HERO_SEQUENCE)) {
-    if (!cfg.selector) continue
-    ;(cfg.all ? hero.querySelectorAll(cfg.selector) : [hero.querySelector(cfg.selector)]).forEach((el) =>
-      claim(role, el)
-    )
+  for (const role of Object.keys(HERO_SEQUENCE)) {
+    const els = hero.querySelectorAll(`[data-hero-${role}]`)
+    if (els.length) groups.set(role, [...els])
   }
   if (!groups.size) return
 
