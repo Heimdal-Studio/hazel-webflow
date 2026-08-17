@@ -50,32 +50,39 @@ import { initTracking } from './tracking.js'
     })
   }
 
+  // Each step is independent (home/contact page script, global, nav) — one
+  // throwing (e.g. a GSAP plugin still missing after the CDN-degrade timeout
+  // below) must not skip the rest.
+  function safe(name, fn) {
+    try {
+      fn()
+    } catch (error) {
+      console.error(`[Main] ${name} failed to initialize:`, error)
+    }
+  }
+
   function init() {
     // GL effects (hero reveal, career hero, fluid bg) live in the separate
     // dist/gl.js bundle (src/gl/embed.js) so they load in parallel — see README.
     // Painterly brush reveal mounts on any [data-painterly-reveal] section (scroll-triggered).
-    initPainterly()
-    initScrollRefresh()
+    safe('painterly', initPainterly)
+    safe('scrollRefresh', initScrollRefresh)
 
     const page = document.querySelector(CONFIG.selectors.pageWrapper)
     if (!page) return
 
-    if (page.classList.contains('is--home')) initHome()
-    if (page.classList.contains('is--contact')) initContact()
+    if (page.classList.contains('is--home')) safe('home', initHome)
+    if (page.classList.contains('is--contact')) safe('contact', initContact)
 
-    initGlobal()
-    initNav()
+    safe('global', initGlobal)
+    safe('nav', initNav)
   }
 
   // =============================================
   // START
   // =============================================
   function start() {
-    try {
-      init()
-    } catch (error) {
-      console.error('[Main] Failed to initialize:', error)
-    }
+    init()
   }
 
   // GSAP + its plugins load from defer'd CDN <script>s, but this bundle is

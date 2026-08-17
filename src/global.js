@@ -231,14 +231,9 @@ function initMarqueeScrollDirection(container = document) {
 
 function initButton(container = document) {
   const offsetIncrement = 0.01
-  const isTabletOrBelow = window.matchMedia('(max-width: 991px)').matches
   const buttons = container.querySelectorAll('[data-button-text]')
 
-  buttons.forEach((button) => {
-    if (button._buttonHoverInit) return
-    if (isTabletOrBelow && button.dataset.buttonText === 'disable-tablet') return
-    button._buttonHoverInit = true
-
+  const splitChars = (button) => {
     const text = button.textContent
     button.innerHTML = ''
     ;[...text].forEach((char, index) => {
@@ -252,7 +247,36 @@ function initButton(container = document) {
 
       button.appendChild(span)
     })
+  }
+
+  const tabletButtons = []
+  buttons.forEach((button) => {
+    if (button._buttonHoverInit) return
+    button._buttonHoverInit = true
+    if (button.dataset.buttonText === 'disable-tablet') {
+      tabletButtons.push(button)
+      return
+    }
+    splitChars(button)
   })
+
+  if (!tabletButtons.length) return
+
+  // CSS unclips these (overflow: visible) at <=991px so the roll-up hover text
+  // isn't clipped without hover — but that also exposes the split spans'
+  // text-shadow duplicate if a button was split at a wider viewport and never
+  // un-split. Keep the split synced to the same breakpoint the CSS uses,
+  // instead of a one-time check, or resizing across it leaves stale spans.
+  const mq = window.matchMedia(MQ.tabletDown)
+  const sync = () => {
+    tabletButtons.forEach((button) => {
+      const isSplit = !!button.querySelector('span')
+      if (mq.matches && isSplit) button.textContent = button.textContent
+      else if (!mq.matches && !isSplit) splitChars(button)
+    })
+  }
+  sync()
+  mq.addEventListener('change', sync)
 }
 
 function initLineRevealTestimonials() {
