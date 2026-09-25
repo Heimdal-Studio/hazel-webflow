@@ -50,7 +50,7 @@ function mountCareerHero(el) {
   if (photoUrl) ready.push(career.setImageAsync(photoUrl));
   if (maskUrl) ready.push(career.setMaskAsync(maskUrl));
   Promise.all(ready).then(() => {
-    const loop = gatedLoop(el, dpr, (elapsed, size) => {
+    gatedLoop(el, dpr, (elapsed, size) => {
       career.render(params, {
         width: size.width,
         height: size.height,
@@ -60,15 +60,6 @@ function mountCareerHero(el) {
         includeBg: true,
       });
     });
-
-    window.addEventListener(
-      "pagehide",
-      () => {
-        loop.stop();
-        career.dispose();
-      },
-      { once: true },
-    );
   });
 }
 

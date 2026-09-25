@@ -7,6 +7,7 @@ import { initGlobal } from './global.js'
 import { initNav } from './nav.js'
 import { initPainterly } from './painterly-reveal/index.js'
 import { initTracking } from './tracking.js'
+import { initPageTransition } from './page-transition.js'
 
 ;(() => {
   // =============================================
@@ -101,5 +102,6 @@ import { initTracking } from './tracking.js'
   }
 
   initTracking() // no GSAP dependency — must not wait out a blocked CDN
+  initPageTransition()
   whenPluginsReady(start)
 })()

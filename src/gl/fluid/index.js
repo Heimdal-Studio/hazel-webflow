@@ -64,7 +64,7 @@ function mountFluidBg(el) {
   const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
   const loopDur = loopDurationSeconds || 10;
 
-  const loop = gatedLoop(el, dpr, (elapsed, size) => {
+  gatedLoop(el, dpr, (elapsed, size) => {
     fluid.render(params, {
       width: size.width,
       height: size.height,
@@ -73,15 +73,6 @@ function mountFluidBg(el) {
       includeBg: true,
     });
   });
-
-  window.addEventListener(
-    "pagehide",
-    () => {
-      loop.stop();
-      fluid.dispose();
-    },
-    { once: true },
-  );
 }
 
 export function initFluidBg(root = document) {

@@ -50,7 +50,7 @@ function mountHeroReveal(el) {
     // Play the reveal once on load, then hold it settled while the flow field keeps
     // running: reveal progress caps at 1, but raw elapsed drives the perpetual flow
     // (the core wraps it into a seamless loop).
-    const loop = gatedLoop(el, dpr, (elapsed, size) => {
+    gatedLoop(el, dpr, (elapsed, size) => {
       hero.render(params, {
         width: size.width,
         height: size.height,
@@ -59,15 +59,6 @@ function mountHeroReveal(el) {
         includeBg: params.includeBg,
       });
     });
-
-    window.addEventListener(
-      "pagehide",
-      () => {
-        loop.stop();
-        hero.dispose();
-      },
-      { once: true },
-    );
   });
 }
 

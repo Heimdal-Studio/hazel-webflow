@@ -61,7 +61,6 @@ function mount(el) {
     { rootMargin: "0px 0px -15% 0px", threshold: 0 },
   );
   io.observe(el);
-  window.addEventListener("pagehide", () => io.disconnect(), { once: true });
 }
 
 export function initPainterly(root = document) {
